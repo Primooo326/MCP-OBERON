@@ -1,0 +1,17 @@
+{
+    "mcpServers": {
+        "weather": {
+            "command": "node",
+            "args": [
+                "C:/Users/juan.morales/Desktop/developer/MCP/build/weather.js"
+            ]
+        },
+        "oberon": {
+            "command": "npx",
+            "args": [
+                "mcp-remote",
+                "http://localhost:3000/mcp"
+            ]
+        }
+    }
+}
