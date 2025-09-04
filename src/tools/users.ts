@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { AxiosInstance } from "axios";
 import z from "zod";
-import { apiClient } from "../constants.js";
+
 
 
 function formatUsuario(u: any) {
@@ -33,7 +34,7 @@ Fecha de Creación: ${u.insertDate}
                     `.trim();
 }
 
-export function registerUsersTool(server: McpServer) {
+export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
 
     // GET /core/users

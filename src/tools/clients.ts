@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { AxiosInstance } from "axios";
 import z from "zod";
-import { apiClient } from "../constants.js";
 
 function formatCliente(c: any) {
     const ubicacionesFormateadas = c.locationClient && c.locationClient.length > 0
@@ -41,7 +41,7 @@ Fecha de Creación: ${c.insertDate}
  * @param server La instancia del servidor MCP.
  * @param authToken El token de autenticación para usar en las llamadas a la API.
  */
-export function registerClientsTool(server: McpServer) {
+export function registerClientsTool(server: McpServer, apiClient: AxiosInstance) {
     console.log(`[Tools] Registrando herramientas de Clientes en el servidor...`);
 
 

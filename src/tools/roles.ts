@@ -1,7 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { AxiosInstance } from "axios";
 import z from "zod";
-import { apiClient } from "../constants.js";
-
 
 function formatRole(r: any) {
     const usuariosAsignados = r.user && r.user.length > 0
@@ -28,7 +27,7 @@ ${usuariosAsignados}
                     `.trim();
 }
 
-export function registerRolesTool(server: McpServer) {
+export function registerRolesTool(server: McpServer, apiClient: AxiosInstance) {
     console.log(`[Tools] Registrando herramientas de Roles en el servidor...`);
 
 

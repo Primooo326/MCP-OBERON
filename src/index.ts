@@ -6,6 +6,7 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { registerAllTools } from "./tools/register.js";
 import { authenticateWithBackend } from "./auth.js";
 import dotenv from "dotenv";
+import { ensureValidApiKey } from "./api_key_auth.js";
 
 dotenv.config();
 
@@ -17,46 +18,33 @@ interface AuthenticatedRequest extends Request {
 // Creamos una aplicación Express
 const app = express();
 app.use(express.json());
+// app.use(ensureValidApiKey);
+
 
 // Un mapa para almacenar las instancias de transporte activas por ID de sesión
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 const PORT = 3000;
 
 
-function createConfiguredMcpServer(): McpServer {
+function createConfiguredMcpServer(token: string): McpServer {
     const server = new McpServer({
         name: "oberon-api",
         version: "1.0.0",
         capabilities: {
             resources: {},
             tools: {},
-        },
+        }
     });
+
+    const apikey = process.env.API_KEY || token;
 
     console.log("[Servidor MCP] Nueva instancia creada. Registrando herramientas...");
     // Pasamos el token a la función que registra las herramientas
-    registerAllTools(server);
+    registerAllTools(server, apikey);
     console.log("[Servidor MCP] Todas las herramientas han sido registradas para la nueva sesión.");
 
     return server;
 }
-
-// --- NUEVAS RUTAS DE AUTENTICACIÓN ---
-
-app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.status(400).json({ error: 'El nombre de usuario y la contraseña son requeridos.' });
-    }
-
-    try {
-        const token = await authenticateWithBackend(username, password);
-        res.json({ token });
-    } catch (error) {
-        res.status(401).json({ error: (error as Error).message });
-    }
-});
 
 
 // --- RUTAS MCP PROTEGIDAS ---
@@ -91,7 +79,7 @@ app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
         };
 
         // Creamos una nueva instancia del servidor MCP, ahora pasando el token
-        const server = createConfiguredMcpServer(); // El token está disponible gracias al middleware
+        const server = createConfiguredMcpServer(req.headers['x-api-key'] as string); // El token está disponible gracias al middleware
 
         // Conectamos el servidor al nuevo transporte
         await server.connect(transport);
