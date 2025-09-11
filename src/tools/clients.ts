@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AxiosInstance } from "axios";
 import z from "zod";
+import { logToolExecution } from "../logging.js";
 
 function formatCliente(c: any) {
     const ubicacionesFormateadas = c.locationClient && c.locationClient.length > 0
@@ -56,6 +57,13 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
             orden: z.enum(["ASC", "DESC"]).optional().default("ASC").describe("Orden de la lista de clientes (por defecto ASC)."),
         },
         async ({ terminoBusqueda, cantidad, pagina, orden }) => {
+            logToolExecution({
+                toolName: "Obtener Clientes",
+                level: "INFO",
+                parameters: { terminoBusqueda, cantidad, pagina, orden },
+                status: "STARTED",
+                message: "Iniciando ejecución de la herramienta Obtener Clientes.",
+            });
             try {
                 const params = { take: cantidad, term: terminoBusqueda, page: pagina, order: orden };
                 console.log(`[Herramienta: obtenerClientes] Llamando a /core/clients con params:`, params);
@@ -67,11 +75,27 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 const meta = response.data.meta;
 
                 if (!clientes || clientes.length === 0) {
+                    logToolExecution({
+                        toolName: "Obtener Clientes",
+                        level: "INFO",
+                        parameters: { terminoBusqueda, cantidad, pagina, orden },
+                        status: "SUCCESS",
+                        message: "No se encontraron clientes que coincidan con la búsqueda.",
+                        details: { clientesEncontrados: 0 }
+                    });
                     return { content: [{ type: "text", text: "No se encontraron clientes que coincidan con la búsqueda." }] };
                 }
 
                 const textoFormateado = clientes.map((c: any) => formatCliente(c).trim()).join('\n\n');
 
+                logToolExecution({
+                    toolName: "Obtener Clientes",
+                    level: "INFO",
+                    parameters: { terminoBusqueda, cantidad, pagina, orden },
+                    status: "SUCCESS",
+                    message: `Se encontraron ${clientes.length} clientes.`,
+                    details: { clientesEncontrados: clientes.length, meta }
+                });
                 return {
                     content: [
                         {
@@ -83,6 +107,14 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 };
 
             } catch (error: any) {
+                logToolExecution({
+                    toolName: "Obtener Clientes",
+                    level: "ERROR",
+                    parameters: { terminoBusqueda, cantidad, pagina, orden },
+                    status: "FAILURE",
+                    message: `Error al consultar la API de clientes: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: obtenerClientes] Error: ${error.message}`);
                 return { content: [{ type: "text", text: "Ocurrió un error al consultar la API de clientes." }] };
             }
@@ -97,6 +129,13 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
             id: z.string().describe("ID del cliente a buscar."),
         },
         async ({ id }) => {
+            logToolExecution({
+                toolName: "Obtener Cliente por ID",
+                level: "INFO",
+                parameters: { id },
+                status: "STARTED",
+                message: "Iniciando ejecución de la herramienta Obtener Cliente por ID.",
+            });
             try {
                 console.log(`[Herramienta: obtenerCliente] Llamando a /core/clients/${id}...`);
 
@@ -106,11 +145,27 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 const meta = response.data.meta;
 
                 if (!clientes || clientes.length === 0) {
+                    logToolExecution({
+                        toolName: "Obtener Cliente por ID",
+                        level: "INFO",
+                        parameters: { id },
+                        status: "SUCCESS",
+                        message: "No se encontraron clientes que coincidan con la búsqueda.",
+                        details: { clientesEncontrados: 0 }
+                    });
                     return { content: [{ type: "text", text: "No se encontraron clientes que coincidan con la búsqueda." }] };
                 }
 
                 const textoFormateado = clientes.map((c: any) => formatCliente(c).trim()).join('\n\n');
 
+                logToolExecution({
+                    toolName: "Obtener Cliente por ID",
+                    level: "INFO",
+                    parameters: { id },
+                    status: "SUCCESS",
+                    message: `Se encontró 1 cliente.`, 
+                    details: { clienteEncontrado: clientes[0], meta }
+                });
                 return {
                     content: [
                         {
@@ -122,6 +177,14 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 };
 
             } catch (error: any) {
+                logToolExecution({
+                    toolName: "Obtener Cliente por ID",
+                    level: "ERROR",
+                    parameters: { id },
+                    status: "FAILURE",
+                    message: `Error al consultar la API de clientes por ID: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: obtenerCliente] Error: ${error.message}`);
                 return { content: [{ type: "text", text: "Ocurrió un error al consultar la API de clientes." }] };
             }
