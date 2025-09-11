@@ -12,7 +12,7 @@
     "oberon": "./build/oberon.js"
   },
   "scripts": {
-    "build": "tsc ",
+    "build": "tsc",
     "inspect:oberon": "npx @modelcontextprotocol/inspector node build/oberon.js",
     "inspect:weather": "npx @modelcontextprotocol/inspector node build/weather.js",
     "inspect": "npx @modelcontextprotocol/inspector -e API_KEY='APIKEY' http://localhost:3000/mcp",

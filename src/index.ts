@@ -7,6 +7,7 @@ import { registerAllTools } from "./tools/register.js";
 import { authenticateWithBackend } from "./auth.js";
 import dotenv from "dotenv";
 import { ensureValidApiKey } from "./api_key_auth.js";
+import { registerAllResources } from "./resources/register.js";
 
 dotenv.config();
 
@@ -41,6 +42,8 @@ function createConfiguredMcpServer(token: string): McpServer {
     console.log("[Servidor MCP] Nueva instancia creada. Registrando herramientas...");
     // Pasamos el token a la función que registra las herramientas
     registerAllTools(server, apikey);
+    registerAllResources(server);
+
     console.log("[Servidor MCP] Todas las herramientas han sido registradas para la nueva sesión.");
 
     return server;

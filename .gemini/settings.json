@@ -1,12 +1,9 @@
 {
     "mcpServers": {
-        "oberon": {
-            "command": "node",
-            "args": [
-                "build/stdio.js"
-            ],
-            "env": {
-                "API_KEY": "HOLIS"
+        "oberonSHTTP": {
+            "httpUrl": "http://localhost:3000/mcp",
+            "headers": {
+                "x-api-key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3Mjg0MTc1NS0zRjNELTQyNjYtQUI3QS1DRjBFMUQ3RUIyM0QiLCJjbGllbnRJZCI6IkZDOUNFQ0VGLTkzQjktRUYxMS04OEQwLTYwNDVCRDc5OTBFMSIsImlhdCI6MTc1NzYwOTMzMCwiZXhwIjoxNzU3Njk1NzMwfQ.CfiXpRZJZEgbiMbkN5qiY7kVuEAO_vszc2Ma2NlHW2c"
             }
         }
     }
