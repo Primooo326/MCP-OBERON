@@ -18,7 +18,7 @@ app.use(express.json());
 
 
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-const PORT = 3000;
+const PORT = 3001;
 
 
 // Importa McpServer y tus registros como ya lo haces
