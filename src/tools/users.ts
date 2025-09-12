@@ -40,7 +40,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
     // GET /core/users
 
     server.tool(
-        "Obtener Usuarios",
+        "Obtener_Usuarios",
         "Busca y devuelve una lista detallada de usuarios del sistema, incluyendo su rol, zona y ubicaciones.",
         {
             terminoBusqueda: z.string().optional().describe("Texto para buscar por nombre, email, username, etc."),
@@ -86,7 +86,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
     // GET /core/users/{id}
     server.tool(
-        "Obtener Usuario por ID",
+        "Obtener_Usuario_por_ID",
         "Busca y devuelve un usuario del sistema, incluyendo su rol, zona y ubicaciones.",
         {
             id: z.string().describe("ID del usuario a buscar."),
@@ -127,7 +127,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
     // GET /core/users/getUsersByClientId/{clientId}
     server.tool(
-        "Obtener Usuarios por Cliente",
+        "Obtener_Usuarios_por_Cliente",
         "Busca y devuelve una lista de usuarios del sistema, incluyendo su rol, zona y ubicaciones.",
         {
             clientId: z.string().describe("ID del cliente a buscar."),
@@ -168,7 +168,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
     // POST /core/users
     server.tool(
-        "Crear Usuario",
+        "Crear_Usuario",
         "Crea un nuevo usuario en el sistema con la información proporcionada.",
         {
             name: z.string().describe("Nombre completo del usuario."),

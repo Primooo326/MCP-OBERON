@@ -13,7 +13,8 @@
     "inspect:weather": "npx @modelcontextprotocol/inspector node build/weather.js",
     "inspect": "npx @modelcontextprotocol/inspector http://localhost:3000/mcp",
     "inspect:stdio": "npx @modelcontextprotocol/inspector  node build/stdio.js",
-    "start": "node build/index.js"
+    "start": "node build/index.js",
+    "dev": "nodemon"
   },
   "files": [
     "build"
@@ -21,7 +22,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",
     "axios": "^1.11.0",
-    "dotenv": "^17.2.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -30,6 +30,8 @@
     "@types/node": "^24.3.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   }
 }

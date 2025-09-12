@@ -1,14 +1,10 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { registerAllTools } from "./tools/register.js";
-import dotenv from "dotenv";
 import { registerAllResources } from "./resources/register.js";
-
-dotenv.config();
-
 interface AuthenticatedRequest extends Request {
     token?: string;
 }
@@ -59,7 +55,7 @@ Nunca intentes adivinar un ID. Si no estás seguro, pregunta al usuario para acl
         name: "oberon-stremable-http",
         version: "1.1.0",
         capabilities: {
-            // system: systemPrompt,
+            system: systemPrompt,
             resources: {}, // Se llenará con registerAllResources
             tools: {}      // Se llenará con registerAllTools
         }
@@ -153,8 +149,7 @@ app.delete('/mcp', handleSessionRequest);
 
 
 app.listen(PORT, () => {
-    console.log(`Servidor MCP de Oberon (Streamable HTTP) iniciado y escuchando en http://localhost:${PORT}`);
-    console.log('Ruta de login disponible en POST http://localhost:3000/login');
+    console.log(`Servidor MCP de Oberon (Streamable HTTP) iniciado y escuchando en http://localhost:${PORT}/mcp`);
 });
 
 

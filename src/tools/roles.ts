@@ -32,7 +32,7 @@ export function registerRolesTool(server: McpServer, apiClient: AxiosInstance) {
 
 
     server.tool(
-        "Obtener Roles",
+        "Obtener_Roles",
         "Busca y devuelve una lista detallada de roles del sistema, incluyendo el cliente asociado y los usuarios que lo tienen.",
         {
             terminoBusqueda: z.string().optional().describe("Texto para buscar por nombre de rol."),

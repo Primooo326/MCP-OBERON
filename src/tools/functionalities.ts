@@ -4,12 +4,23 @@ import z from "zod";
 import { logToolExecution } from "../logging.js";
 
 function formatValue(value: any): string {
-    if (value === null || value === undefined) return "No especificado";
-    if (typeof value === 'object' && value.hasOwnProperty('label')) return value.label;
-    if (typeof value === 'boolean') return value ? "Sí" : "No";
+    if (value === null || value === undefined) {
+        return "No especificado";
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(item => formatValue(item)).join(', ');
+    }
+    if (typeof value === 'object' && value.hasOwnProperty('label')) {
+        return value.label;
+    }
+
+    if (typeof value === 'boolean') {
+        return value ? "Sí" : "No";
+    }
+
     return value.toString();
 }
-
 function formatRegistro(registro: any, paramMap: Map<string, string>): string {
     const fields = Object.keys(registro)
         .filter(key => !key.startsWith('_'))
@@ -78,7 +89,8 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
         "Obtener_Funcionalidades",
         "Busca y devuelve DEFINICIONES de funcionalidades (admin) usando un filtro JSON complejo. Útil para búsquedas avanzadas con múltiples condiciones.",
         {
-            filtro: z.any().describe(`Objeto de filtro JSON. Ejemplo: { "$and": [{ "moduleType": { "equals": 2 } }, {"name": {"contains": "Reporte"}}] }`),
+            // --- CAMBIO AQUÍ ---
+            filtro: z.record(z.string(), z.any()).describe(`Objeto de filtro JSON. Ejemplo: { "$and": [{ "moduleType": { "equals": 2 } }, {"name": {"contains": "Reporte"}}] }`),
             cantidad: z.number().optional().default(10),
             pagina: z.number().optional().default(1)
         },
@@ -141,7 +153,7 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
         "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'buscarFuncionalidadPorNombre'.",
         {
             idFuncionalidad: z.string().describe("El ID exacto de la funcionalidad donde se buscarán los registros."),
-            filtro: z.any().optional().describe("Objeto de filtro JSON para los registros. Usa los TÍTULOS de los campos."),
+            filtro: z.record(z.string(), z.any()).optional().describe("Objeto de filtro JSON para los registros. Usa los TÍTULOS de los campos."),
             cantidad: z.number().optional().default(5),
             pagina: z.number().optional().default(1),
             orden: z.enum(["ASC", "DESC"]).optional().default("DESC")

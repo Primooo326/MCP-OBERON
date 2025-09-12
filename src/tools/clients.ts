@@ -48,7 +48,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
 
     // GET /core/clients
     server.tool(
-        "Obtener Clientes",
+        "Obtener_Clientes",
         "Busca y devuelve una lista detallada de clientes del sistema, incluyendo su rol, zona y ubicaciones.",
         {
             terminoBusqueda: z.string().optional().describe("Texto para buscar por nombre de cliente."),
@@ -123,7 +123,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
 
     // GET /core/clients/{id}
     server.tool(
-        "Obtener Cliente por ID",
+        "Obtener_Cliente_por_ID",
         "Busca y devuelve un cliente del sistema, incluyendo su rol, zona y ubicaciones.",
         {
             id: z.string().describe("ID del cliente a buscar."),
@@ -163,7 +163,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                     level: "INFO",
                     parameters: { id },
                     status: "SUCCESS",
-                    message: `Se encontró 1 cliente.`, 
+                    message: `Se encontró 1 cliente.`,
                     details: { clienteEncontrado: clientes[0], meta }
                 });
                 return {

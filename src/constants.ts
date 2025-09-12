@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import axios from "axios";
 export const API_BASE_URL = "https://api.oberon360.com/api";
 
