@@ -1,0 +1,21 @@
+
+services:
+  # Nombre de nuestro servicio (puedes llamarlo como quieras)
+  app-mcp:
+    # Construye la imagen usando el Dockerfile en el directorio actual (.)
+    build: .
+    
+    # Nombre que le daremos a la imagen construida
+    image: mi-proyecto-mcp-nodejs
+    
+    # Nombre que tendrá el contenedor en ejecución
+    container_name: mcp_nodejs_app
+
+    # Mapeo de puertos: [PUERTO_HOST]:[PUERTO_CONTENEDOR]
+    # Conecta el puerto 3001 de tu máquina al puerto 3001 del contenedor
+    ports:
+      - "3001:3001"
+
+    # Política de reinicio. 'unless-stopped' reinicia el contenedor si falla
+    # o si se reinicia el sistema, a menos que lo hayas detenido manualmente.
+    restart: unless-stopped
