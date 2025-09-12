@@ -1,12 +1,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-// --- CÓDIGO ACTUALIZADO PARA LOGGING ---
-
-// Define la ruta del archivo de log. Se creará en el directorio raíz de tu proyecto.
 const logFilePath = path.join(process.cwd(), 'tools_activity.txt');
 
-// Definimos los niveles de log para estandarizar
 type LogLevel = 'INFO' | 'ERROR' | 'WARN';
 
 interface LogDetails {
@@ -15,7 +11,7 @@ interface LogDetails {
     parameters: any;
     status: 'STARTED' | 'SUCCESS' | 'FAILURE';
     message: string;
-    details?: any; // Para información extra, como stack traces de errores
+    details?: any;
 }
 
 /**
@@ -29,19 +25,15 @@ export async function logToolExecution(logData: LogDetails): Promise<void> {
         ...logData,
     };
 
-    // 1. Formatear el log para la consola (con colores para legibilidad)
     const colorMap = { INFO: '\x1b[32m', ERROR: '\x1b[31m', WARN: '\x1b[33m' }; // Verde, Rojo, Amarillo
     const resetColor = '\x1b[0m';
     console.log(`${colorMap[logData.level]}[${logData.status}] ${logData.toolName}${resetColor} - ${logData.message}`);
 
-    // 2. Formatear el log para el archivo (JSON en una línea)
     const logString = JSON.stringify(logEntry) + '\n';
 
-    // 3. Añadir el log al archivo de texto
     try {
         await fs.appendFile(logFilePath, logString, 'utf8');
     } catch (error) {
-        // Si falla la escritura del archivo, mostrar el error en la consola para no perder la traza.
         console.error(`[Logging Error] Failed to write to log file: ${logFilePath}`);
         console.error(error);
     }

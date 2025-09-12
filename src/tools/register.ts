@@ -11,7 +11,6 @@ import { registerFunctionalitiesTool } from "./functionalities.js";
  * @param authToken El token de autenticación para las herramientas.
  */
 export function registerAllTools(server: McpServer, token: string) {
-    // Ahora pasamos el token a cada función de registro
 
 
     const axiosInstance = createAxiosInstance(token);

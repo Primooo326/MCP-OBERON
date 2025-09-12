@@ -89,7 +89,6 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
         "Obtener_Funcionalidades",
         "Busca y devuelve DEFINICIONES de funcionalidades (admin) usando un filtro JSON complejo. Útil para búsquedas avanzadas con múltiples condiciones.",
         {
-            // --- CAMBIO AQUÍ ---
             filtro: z.record(z.string(), z.any()).describe(`Objeto de filtro JSON. Ejemplo: { "$and": [{ "moduleType": { "equals": 2 } }, {"name": {"contains": "Reporte"}}] }`),
             cantidad: z.number().optional().default(10),
             pagina: z.number().optional().default(1)

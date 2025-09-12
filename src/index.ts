@@ -56,8 +56,8 @@ Nunca intentes adivinar un ID. Si no estás seguro, pregunta al usuario para acl
         version: "1.1.0",
         capabilities: {
             system: systemPrompt,
-            resources: {}, // Se llenará con registerAllResources
-            tools: {}      // Se llenará con registerAllTools
+            resources: {},
+            tools: {}
         }
     });
 
