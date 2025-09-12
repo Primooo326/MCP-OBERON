@@ -28,8 +28,8 @@ function createConfiguredMcpServer(token: string): McpServer {
 
 Tus herramientas principales son:
 - \`Buscar Funcionalidades\`: Para búsquedas avanzadas de definiciones.
-- \`buscarFuncionalidadPorNombre\`: Para encontrar una funcionalidad específica por su nombre.
-- \`buscarRegistrosDeFuncionalidad\`: Para obtener los registros de datos de una funcionalidad usando su ID.
+- \`Buscar Funcionalidad Por Nombre\`: Para encontrar una funcionalidad específica por su nombre.
+- \`Buscar Registros De Funcionalidad\`: Para obtener los registros de datos de una funcionalidad usando su ID.
 
 Tus herramientas secundarias son:
 - \`Buscar Clientes\`: Para obtener información sobre los clientes de la empresa.
