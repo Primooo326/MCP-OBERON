@@ -75,7 +75,7 @@ function translateFilterKeys(filterObj: any, titleToIdMap: Map<string, string>):
 export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosInstance) => {
 
     server.tool(
-        "Obtener Funcionalidades",
+        "Obtener_Funcionalidades",
         "Busca y devuelve DEFINICIONES de funcionalidades (admin) usando un filtro JSON complejo. Útil para búsquedas avanzadas con múltiples condiciones.",
         {
             filtro: z.any().describe(`Objeto de filtro JSON. Ejemplo: { "$and": [{ "moduleType": { "equals": 2 } }, {"name": {"contains": "Reporte"}}] }`),
@@ -108,7 +108,7 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
     );
 
     server.tool(
-        "Buscar Funcionalidad Por Nombre",
+        "Buscar_Funcionalidad_Por_Nombre",
         "Busca y devuelve la definición de una ÚNICA funcionalidad que coincida con el nombre proporcionado. Es la forma más rápida de obtener el ID y la estructura de una funcionalidad.",
         {
             nombre: z.string().describe("El nombre (o parte del nombre) de la funcionalidad a buscar.")
@@ -137,7 +137,7 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
     );
 
     server.tool(
-        "Buscar Registros De Funcionalidad",
+        "Buscar_Registros_De_Funcionalidad",
         "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'buscarFuncionalidadPorNombre'.",
         {
             idFuncionalidad: z.string().describe("El ID exacto de la funcionalidad donde se buscarán los registros."),
