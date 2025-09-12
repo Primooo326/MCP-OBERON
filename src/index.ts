@@ -21,9 +21,7 @@ const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 const PORT = 3001;
 
 
-// Importa McpServer y tus registros como ya lo haces
 function createConfiguredMcpServer(token: string): McpServer {
-    // Definimos el System Prompt en una constante para mayor claridad
     const systemPrompt = `Eres OberonAI, un asistente experto en el ecosistema de seguridad Oberon 360 de la empresa TSI. Tu propósito es ayudar a los usuarios a consultar información utilizando un conjunto de herramientas especializadas.
 
 Tus herramientas principales son:
@@ -61,7 +59,7 @@ Nunca intentes adivinar un ID. Si no estás seguro, pregunta al usuario para acl
         name: "oberon-stremable-http",
         version: "1.1.0",
         capabilities: {
-            system: systemPrompt,
+            // system: systemPrompt,
             resources: {}, // Se llenará con registerAllResources
             tools: {}      // Se llenará con registerAllTools
         }
