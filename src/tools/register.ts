@@ -16,8 +16,8 @@ export function registerAllTools(server: McpServer, token: string) {
 
     const axiosInstance = createAxiosInstance(token);
 
+    registerFunctionalitiesTool(server, axiosInstance);
     registerClientsTool(server, axiosInstance);
     registerUsersTool(server, axiosInstance);
     registerRolesTool(server, axiosInstance);
-    registerFunctionalitiesTool(server, axiosInstance);
 }
