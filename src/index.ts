@@ -5,13 +5,20 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { registerAllTools } from "./tools/register.js";
 import { registerAllResources } from "./resources/register.js";
+import cors from 'cors'
+import axios from "axios";
+import { createAxiosInstance } from "./constants.js";
 interface AuthenticatedRequest extends Request {
     token?: string;
 }
 
 const app = express();
 app.use(express.json());
-
+app.use(cors({
+    allowedHeaders: ['Content-Type', 'mcp-session-id', 'mcp-protocol-version', 'x-api-key'],
+    exposedHeaders: ['Mcp-Session-Id'],
+    origin: "*"
+}));
 
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 const PORT = 3001;
@@ -71,29 +78,30 @@ Nunca intentes adivinar un ID. Si no estás seguro, pregunta al usuario para acl
     return server;
 }
 
-// function createConfiguredMcpServer(token: string): McpServer {
-//     const server = new McpServer({
-//         name: "oberon-stremable-http",
-//         version: "1.1.0",
-//         capabilities: {
-//             resources: {},
-//             tools: {},
-//         }
-//     });
+async function checkToken(token: string): Promise<boolean> {
 
-//     const apikey = process.env.API_KEY || token;
+    try {
+        const axiosInstance = createAxiosInstance(token);
 
-//     registerAllTools(server, apikey);
-//     registerAllResources(server);
+        const resp = await axiosInstance.get('/core/auth/locationsForUser');
 
-//     console.log("[Servidor MCP] Todas las herramientas han sido registradas para la nueva sesión.");
+        if (resp.data.statusCode === 200) {
+            return true;
+        } else {
+            return false;
+        }
 
-//     return server;
-// }
+    } catch (error) {
+        console.log(error);
+        return false;
+    }
+
+}
 
 app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
     let transport: StreamableHTTPServerTransport;
+
 
     if (sessionId && transports[sessionId]) {
         transport = transports[sessionId];
@@ -106,6 +114,8 @@ app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
                 transports[newSessionId] = transport;
                 console.log(`[Sesión ${newSessionId}] Creada y almacenada.`);
             },
+            enableDnsRebindingProtection: true,
+
         });
 
         transport.onclose = () => {
@@ -114,6 +124,19 @@ app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
                 delete transports[transport.sessionId];
             }
         };
+        const tokenValid = await checkToken(req.headers['x-api-key'] as string);
+
+        if (!tokenValid) {
+            res.status(401).json({
+                jsonrpc: '2.0',
+                error: {
+                    code: -32000,
+                    message: 'Token no válido.',
+                },
+                id: null,
+            });
+            return;
+        }
 
         const server = createConfiguredMcpServer(req.headers['x-api-key'] as string);
 
