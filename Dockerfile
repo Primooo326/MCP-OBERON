@@ -17,6 +17,8 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
+COPY .env ./
+
 RUN npm ci --only=production
 
 COPY --from=builder /usr/src/app/build ./build
