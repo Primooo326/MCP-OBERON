@@ -1,5 +1,8 @@
 import axios from "axios";
-export const API_BASE_URL = "https://api.oberon360.com/api";
+import { config } from "dotenv";
+
+config();
+export const API_BASE_URL = process.env.API_BASE_URL
 
 export function createAxiosInstance(token: string) {
     return axios.create({
