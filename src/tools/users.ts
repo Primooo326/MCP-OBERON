@@ -4,35 +4,6 @@ import z from "zod";
 
 
 
-function formatUsuario(u: any) {
-    const ubicaciones = u.locationUsers && u.locationUsers.length > 0
-        ? u.locationUsers.map((loc: any) => `  - ID Cliente Ubicación: ${loc.locationClientId}`).join('\n')
-        : "  Ninguna";
-
-    const estado = u.status ? "Activo" : "Inactivo";
-
-    return `
-=========================================
-👤 USUARIO: ${u.name} (${u.username})
------------------------------------------
---- INFORMACIÓN PRINCIPAL ---
-ID: ${u.id}
-Email: ${u.email}
-Celular: ${u.cellphone || 'No especificado'}
-Nº Identificación: ${u.numeroIdentificacion || 'No especificado'}
-Estado: ${estado}
-Foto Path: ${u.photo || 'No especificada'}
-
---- ROL Y ZONA ---
-Rol: ${u.role ? u.role.name : 'No asignado'} (ID: ${u.rolId})
-Zona: ${u.userZone ? u.userZone.description : 'No asignada'} (ID: ${u.userZoneId})
-
---- FECHAS IMPORTANTES ---
-Fecha de Creación: ${u.insertDate}
-Última Actualización de Contraseña: ${u.passwordUpdateDate}
-=========================================
-                    `.trim();
-}
 
 export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
@@ -41,7 +12,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
     server.tool(
         "Obtener_Usuarios",
-        "Busca y devuelve una lista detallada de usuarios del sistema, incluyendo su rol, zona y ubicaciones.",
+        "Busca y devuelve una lista detallada de usuarios del sistema, incluyendo su rol, zona y ubicaciones. Devuelve datos en formato JSON parseable en el campo 'text'.",
         {
             terminoBusqueda: z.string().optional().describe("Texto para buscar por nombre, email, username, etc."),
             cantidad: z.number().optional().default(10).describe("Número de usuarios a devolver (por defecto 10)."),
@@ -60,26 +31,38 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const meta = response.data.meta;
 
                 if (!usuarios || usuarios.length === 0) {
-                    return { content: [{ type: "text", text: "No se encontraron usuarios que coincidan con la búsqueda." }] };
+                    const jsonResponse = JSON.stringify({
+                        type: "list",
+                        data: [],
+                        count: 0,
+                        meta: meta || {}
+                    }, null, 2);
+                    return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
-                const textoFormateado = usuarios.map((u: any) => {
-                    return formatUsuario(u).trim();
-                }).join('\n\n');
-
+                const jsonResponse = JSON.stringify({
+                    type: "list",
+                    data: usuarios,
+                    count: usuarios.length,
+                    meta: meta || {}
+                }, null, 2);
                 return {
                     content: [
                         {
                             type: "text",
-                            text: `Se encontraron ${usuarios.length} usuarios:\n\n${textoFormateado}`,
-                            "_meta": meta
+                            text: jsonResponse
                         },
                     ]
                 };
 
             } catch (error: any) {
                 console.error(`[Herramienta: obtenerUsuarios] Error: ${error.message}`);
-                return { content: [{ type: "text", text: "Ocurrió un error al consultar la API de usuarios." }] };
+                const errorJson = JSON.stringify({
+                    type: "error",
+                    message: "Ocurrió un error al consultar la API de usuarios.",
+                    details: { error: error.message }
+                }, null, 2);
+                return { content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -87,7 +70,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
     // GET /core/users/{id}
     server.tool(
         "Obtener_Usuario_por_ID",
-        "Busca y devuelve un usuario del sistema, incluyendo su rol, zona y ubicaciones.",
+        "Busca y devuelve un usuario del sistema, incluyendo su rol, zona y ubicaciones. Devuelve datos en formato JSON parseable en el campo 'text'.",
         {
             id: z.string().describe("ID del usuario a buscar."),
         },
@@ -100,27 +83,37 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const meta = response.data.meta;
 
                 if (!usuarios || usuarios.length === 0) {
-                    return { content: [{ type: "text", text: "No se encontraron usuarios que coincidan con la búsqueda." }] };
+                    const jsonResponse = JSON.stringify({
+                        type: "detail",
+                        data: null,
+                        meta: { found: false }
+                    }, null, 2);
+                    return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
-                const textoFormateado = usuarios.map((u: any) => {
-
-                    return formatUsuario(u).trim();
-                }).join('\n\n');
-
+                const usuario = usuarios[0];
+                const jsonResponse = JSON.stringify({
+                    type: "detail",
+                    data: usuario,
+                    meta: { found: true, ...meta }
+                }, null, 2);
                 return {
                     content: [
                         {
                             type: "text",
-                            text: `Se encontraron ${usuarios.length} usuarios:\n\n${textoFormateado}`,
-                            "_meta": meta
+                            text: jsonResponse
                         },
                     ]
                 };
 
             } catch (error: any) {
                 console.error(`[Herramienta: obtenerUsuario] Error: ${error.message}`);
-                return { content: [{ type: "text", text: "Ocurrió un error al consultar la API de usuarios." }] };
+                const errorJson = JSON.stringify({
+                    type: "error",
+                    message: "Ocurrió un error al consultar la API de usuarios.",
+                    details: { error: error.message }
+                }, null, 2);
+                return { content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -128,7 +121,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
     // GET /core/users/getUsersByClientId/{clientId}
     server.tool(
         "Obtener_Usuarios_por_Cliente",
-        "Busca y devuelve una lista de usuarios del sistema, incluyendo su rol, zona y ubicaciones.",
+        "Busca y devuelve una lista de usuarios del sistema, incluyendo su rol, zona y ubicaciones. Devuelve datos en formato JSON parseable en el campo 'text'.",
         {
             clientId: z.string().describe("ID del cliente a buscar."),
         },
@@ -141,27 +134,38 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const meta = response.data.meta;
 
                 if (!usuarios || usuarios.length === 0) {
-                    return { content: [{ type: "text", text: "No se encontraron usuarios que coincidan con la búsqueda." }] };
+                    const jsonResponse = JSON.stringify({
+                        type: "list",
+                        data: [],
+                        count: 0,
+                        meta: meta || {}
+                    }, null, 2);
+                    return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
-                const textoFormateado = usuarios.map((u: any) => {
-
-                    return formatUsuario(u).trim();
-                }).join('\n\n');
-
+                const jsonResponse = JSON.stringify({
+                    type: "list",
+                    data: usuarios,
+                    count: usuarios.length,
+                    meta: meta || {}
+                }, null, 2);
                 return {
                     content: [
                         {
                             type: "text",
-                            text: `Se encontraron ${usuarios.length} usuarios:\n\n${textoFormateado}`,
-                            "_meta": meta
+                            text: jsonResponse
                         },
                     ]
                 };
 
             } catch (error: any) {
                 console.error(`[Herramienta: obtenerUsuariosPorCliente] Error: ${error.message}`);
-                return { content: [{ type: "text", text: "Ocurrió un error al consultar la API de usuarios." }] };
+                const errorJson = JSON.stringify({
+                    type: "error",
+                    message: "Ocurrió un error al consultar la API de usuarios.",
+                    details: { error: error.message }
+                }, null, 2);
+                return { content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -169,7 +173,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
     // POST /core/users
     server.tool(
         "Crear_Usuario",
-        "Crea un nuevo usuario en el sistema con la información proporcionada.",
+        "Crea un nuevo usuario en el sistema con la información proporcionada. Devuelve datos en formato JSON parseable en el campo 'text'.",
         {
             name: z.string().describe("Nombre completo del usuario."),
             username: z.string().describe("Nombre de usuario único para el login."),
@@ -202,16 +206,26 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const usuarioCreado = response.data;
 
                 if (!usuarioCreado) {
-                    return { content: [{ type: "text", text: "La API no devolvió el usuario creado, pero la operación pudo haber sido exitosa." }] };
+                    const jsonResponse = JSON.stringify({
+                        type: "create",
+                        data: null,
+                        success: true,
+                        message: "La API no devolvió el usuario creado, pero la operación pudo haber sido exitosa."
+                    }, null, 2);
+                    return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
-                const textoFormateado = formatUsuario(usuarioCreado);
-
+                const jsonResponse = JSON.stringify({
+                    type: "create",
+                    data: usuarioCreado,
+                    success: true,
+                    message: "Usuario creado exitosamente."
+                }, null, 2);
                 return {
                     content: [
                         {
                             type: "text",
-                            text: `¡Usuario creado exitosamente!\n\n${textoFormateado}`,
+                            text: jsonResponse
                         },
                     ]
                 };
@@ -220,7 +234,13 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 console.error(`[Herramienta: crearUsuario] Error: ${error.message}`);
 
                 const errorData = error.response?.data?.message || "Ocurrió un error al crear el usuario.";
-                return { content: [{ type: "text", text: `Error: ${errorData}` }] };
+                const errorJson = JSON.stringify({
+                    type: "error",
+                    message: `Error: ${errorData}`,
+                    success: false,
+                    details: { error: error.message }
+                }, null, 2);
+                return { content: [{ type: "text", text: errorJson }] };
             }
         }
     );
