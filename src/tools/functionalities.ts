@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AxiosInstance } from "axios";
 import z from "zod";
 import { logToolExecution } from "../logging.js";
+import { exportToExcel } from "../utils/excelUtils.js";
 
 
 function translateFilterKeys(filterObj: any, titleToIdMap: Map<string, string>): any {
@@ -25,11 +26,12 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
 
     server.tool(
         "Obtener_Funcionalidades",
-        "Busca y devuelve DEFINICIONES de funcionalidades (admin) usando un filtro JSON complejo. Útil para búsquedas avanzadas con múltiples condiciones. Devuelve datos en formato JSON parseable en el campo 'text'.",
+        "Busca y devuelve DEFINICIONES de funcionalidades (admin) usando un filtro JSON complejo. Útil para búsquedas avanzadas con múltiples condiciones. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /assets/ con timestamp.",
         {
             filtro: z.record(z.string(), z.any()).describe(`Objeto de filtro JSON. Ejemplo: { "$and": [{ "moduleType": { "equals": 2 } }, {"name": {"contains": "Reporte"}}] }`),
             cantidad: z.number().optional().default(10),
-            pagina: z.number().optional().default(1)
+            pagina: z.number().optional().default(1),
+            exportToExcel: z.boolean().optional().default(false).describe("Si true, genera y retorna URL para descargar datos en Excel.")
         },
         async (params) => {
             const toolName = "Buscar Funcionalidades";
@@ -51,12 +53,25 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
                     }, null, 2);
                     return { content: [{ type: "text", text: jsonResponse }] };
                 }
-                await logToolExecution({ level: 'INFO', toolName, parameters: params, status: 'SUCCESS', message: `Se encontraron ${meta.itemCount} funcionalidades.` });
+                let exportInfo = {};
+                if (params.exportToExcel) {
+                    const result = await exportToExcel(funcionalidades, 'funcionalidades');
+                    exportInfo = { excelFilename: result.filename, excelUrl: result.url };
+                    await logToolExecution({
+                        level: 'INFO',
+                        toolName,
+                        parameters: { ...params, exportToExcel: true },
+                        status: 'SUCCESS',
+                        message: `Se encontraron ${meta.itemCount} funcionalidades y generado Excel en ${result.url}.`
+                    });
+                } else {
+                    await logToolExecution({ level: 'INFO', toolName, parameters: params, status: 'SUCCESS', message: `Se encontraron ${meta.itemCount} funcionalidades.` });
+                }
                 const jsonResponse = JSON.stringify({
                     type: "list",
                     data: funcionalidades,
                     count: funcionalidades.length,
-                    meta: meta || {}
+                    meta: { ...meta, ...exportInfo }
                 }, null, 2);
                 return { content: [{ type: "text", text: jsonResponse }] };
 
@@ -117,13 +132,14 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
 
     server.tool(
         "Buscar_Registros_De_Funcionalidad",
-        "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'buscarFuncionalidadPorNombre'. Devuelve datos en formato JSON parseable en el campo 'text'.",
+        "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'buscarFuncionalidadPorNombre'. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /assets/ con timestamp, usando títulos de campos como headers.",
         {
             idFuncionalidad: z.string().describe("El ID exacto de la funcionalidad donde se buscarán los registros."),
             filtro: z.record(z.string(), z.any()).optional().describe("Objeto de filtro JSON para los registros. Usa los TÍTULOS de los campos."),
             cantidad: z.number().optional().default(5),
             pagina: z.number().optional().default(1),
-            orden: z.enum(["ASC", "DESC"]).optional().default("DESC")
+            orden: z.enum(["ASC", "DESC"]).optional().default("DESC"),
+            exportToExcel: z.boolean().optional().default(false).describe("Si true, genera y retorna URL para descargar datos en Excel.")
         },
         async (params) => {
             const toolName = "buscarRegistrosDeFuncionalidad";
@@ -160,12 +176,32 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
 
                 const idToTitleMap: any = new Map(funcionalidad.parametros.map((p: any) => [p.columnId, p.titulo]));
                 const fieldsMap = Object.fromEntries(idToTitleMap.entries());
-                await logToolExecution({ level: 'INFO', toolName, parameters: params, status: 'SUCCESS', message: `Se encontraron ${meta.itemCount} registros.` });
+                let exportInfo = {};
+                if (params.exportToExcel) {
+                    const dataForExcel = registros.map((reg: Record<string, any>) => {
+                        const mapped: Record<string, any> = {};
+                        for (const [key, val] of Object.entries(reg)) {
+                            mapped[fieldsMap[key] || key] = val;
+                        }
+                        return mapped;
+                    });
+                    const result = await exportToExcel(dataForExcel, `${funcionalidad.name}-registros`);
+                    exportInfo = { excelFilename: result.filename, excelUrl: result.url };
+                    await logToolExecution({
+                        level: 'INFO',
+                        toolName,
+                        parameters: { ...params, exportToExcel: true },
+                        status: 'SUCCESS',
+                        message: `Se encontraron ${meta.itemCount} registros y generado Excel en ${result.url}.`
+                    });
+                } else {
+                    await logToolExecution({ level: 'INFO', toolName, parameters: params, status: 'SUCCESS', message: `Se encontraron ${meta.itemCount} registros.` });
+                }
                 const jsonResponse = JSON.stringify({
                     type: "list",
                     data: registros,
                     count: registros.length,
-                    meta: { ...meta, funcionalidadName: funcionalidad.name, fieldsMap }
+                    meta: { ...meta, funcionalidadName: funcionalidad.name, fieldsMap, ...exportInfo }
                 }, null, 2);
                 return { content: [{ type: "text", text: jsonResponse }] };
 

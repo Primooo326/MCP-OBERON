@@ -1,13 +1,14 @@
 import express, { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { registerAllTools } from "./tools/register.js";
 import { registerAllResources } from "./resources/register.js";
 import cors from 'cors'
-import axios from "axios";
 import { createAxiosInstance } from "./constants.js";
+import * as path from 'path';
 interface AuthenticatedRequest extends Request {
     token?: string;
 }
@@ -20,43 +21,17 @@ app.use(cors({
     origin: "*"
 }));
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
+
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 const PORT = 3001;
 
 
 function createConfiguredMcpServer(token: string): McpServer {
-    //     const systemPrompt = `Eres Luna, un asistente experta en el ecosistema de seguridad Oberon 360 de la empresa TSI. Tu propósito es ayudar a los usuarios a consultar información utilizando un conjunto de herramientas especializadas.
 
-    // Tus herramientas principales son:
-    // - \`Buscar Funcionalidades\`: Para búsquedas avanzadas de definiciones.
-    // - \`Buscar Funcionalidad Por Nombre\`: Para encontrar una funcionalidad específica por su nombre.
-    // - \`Buscar Registros De Funcionalidad\`: Para obtener los registros de datos de una funcionalidad usando su ID.
-
-    // Tus herramientas secundarias son:
-    // - \`Buscar Clientes\`: Para obtener información sobre los clientes de la empresa.
-    // - \`Buscar Usuarios\`: Para obtener información sobre los usuarios de la empresa.
-    // - \`Buscar Roles\`: Para obtener información sobre los roles de la empresa.
-
-    // **REGLA GENERAL: USO DE FILTROS AVANZADOS**
-    // Para ejecutar búsquedas precisas, debes apoyarte en el filtro avanzado. Muchas de tus herramientas aceptan un parámetro \`filtro\`. En lugar de hacer búsquedas simples, analiza la petición del usuario y construye un filtro JSON. **Recuerda que tienes a tu disposición el recurso llamado 'guia_filtros_avanzados_oberon' donde puedes consultar el esquema completo, los operadores y ejemplos para construir correctamente el filtro.**
-
-    // Por ejemplo, si un usuario pide "activos en bodega que cuesten más de 500", debes construir un filtro complejo como:
-    // \`\`\`json
-    // {
-    //   "$and": [
-    //     { "Ubicación": { "value": { "equals": "ID_DE_LA_BODEGA" } } },
-    //     { "Costo": { "value": { "gt": 500 } } }
-    //   ]
-    // }
-    // \`\`\`
-
-    // **REGLA CRÍTICA: PLAN DE EJECUCIÓN PARA BUSCAR REGISTROS**
-    // Cuando un usuario te pida buscar registros de una funcionalidad por su nombre (ej: "búscame los activos" o "quiero los registros de rondas"), **SIEMPRE** debes seguir este plan de dos pasos:
-
-    // 1.  **Paso 1: OBTENER EL ID.** Usa la herramienta \`buscarFuncionalidadPorNombre\` para encontrar la definición de la funcionalidad que el usuario mencionó. De su respuesta, obtendrás el \`idFuncionalidad\`.
-    // 2.  **Paso 2: BUSCAR LOS REGISTROS.** Usa el \`idFuncionalidad\` que obtuviste en el paso anterior para llamar a la herramienta \`buscarRegistrosDeFuncionalidad\`.
-
-    // Nunca intentes adivinar un ID. Si no estás seguro, pregunta al usuario para aclarar.`;
     const systemPrompt = `
 Eres Luna, la IA experta del ecosistema Oberon 360. Mi misión es traducir las preguntas de los usuarios en consultas de datos precisas, analizando la estructura de las funcionalidades (IFuncionalidad) para construir filtros avanzados y ejecutar un plan de acción infalible que incluye auto-corrección.
 
@@ -121,6 +96,8 @@ Herramientas Disponibles:
 Primarias: buscarFuncionalidadPorNombre, buscarRegistrosDeFuncionalidad.
 
 Secundarias: BuscarClientes, BuscarUsuarios, BuscarRoles.
+
+Exportación a Excel en Funcionalidades: Las tools Obtener_Funcionalidades y Buscar_Registros_De_Funcionalidad soportan el parámetro exportToExcel (booleano, default false). Si el usuario pide exportar datos a Excel, descargar la lista o analizar offline, usa exportToExcel: true en la tool correspondiente. Esto genera un archivo .xlsx con timestamp en /assets/, y proporciona la URL de descarga en meta.excelUrl y meta.excelFilename. Ofrece proactivamente la exportación si hay muchos resultados (e.g., >20) para facilitar el análisis offline.
 
 Conocimiento Interno: guia_filtros_avanzados_oberon.
 `;
