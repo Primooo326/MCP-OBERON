@@ -21,5 +21,5 @@ export function registerAllTools(server: McpServer, token: string) {
     registerUsersTool(server, axiosInstance);
     registerRolesTool(server, axiosInstance);
     registerUtilitiesTool(server, axiosInstance);
-    registerWhaTool(server, axiosInstance);
+    registerWhaTool(server);
 }

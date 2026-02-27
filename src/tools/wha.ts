@@ -1,8 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { AxiosInstance } from "axios";
 import z from "zod";
 
-export function registerWhaTool(server: McpServer, apiClient: AxiosInstance) {
+export function registerWhaTool(server: McpServer) {
     console.log(`[Tools] Registrando herramienta de WhatsApp en el servidor...`);
 
     server.tool(
@@ -17,7 +16,6 @@ export function registerWhaTool(server: McpServer, apiClient: AxiosInstance) {
             const URL_WHA = "https://wha.oberon360.com/api/wha/send";
 
             console.log(`[Herramienta: Enviar_Mensaje_WhatsApp] Enviando mensaje a: ${to.join(", ")}`);
-
             try {
 
 
@@ -29,9 +27,12 @@ export function registerWhaTool(server: McpServer, apiClient: AxiosInstance) {
                     bodyPayload.replyMessageId = replyMessageId;
                 }
 
+                console.log(bodyPayload)
                 const response = await fetch(URL_WHA, {
                     method: 'POST',
-
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(bodyPayload)
                 });
 
