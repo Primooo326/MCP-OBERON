@@ -4,7 +4,8 @@ import { registerRolesTool } from "./roles.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createAxiosInstance } from "../constants.js";
 import { registerFunctionalitiesTool } from "./functionalities.js";
-import { registerTimeTool } from "./time.js";
+import { registerUtilitiesTool } from "./utilities.js";
+import { registerWhaTool } from "./wha.js";
 /**
  * Registra todas las herramientas disponibles en el servidor MCP.
  * @param server La instancia del servidor MCP.
@@ -19,5 +20,6 @@ export function registerAllTools(server: McpServer, token: string) {
     registerClientsTool(server, axiosInstance);
     registerUsersTool(server, axiosInstance);
     registerRolesTool(server, axiosInstance);
-    registerTimeTool(server);
+    registerUtilitiesTool(server, axiosInstance);
+    registerWhaTool(server, axiosInstance);
 }

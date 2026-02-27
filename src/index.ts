@@ -91,33 +91,43 @@ Si una búsqueda falla, inspecciono los datos y corrijo mi plan.
 
 Si hay ambigüedad, pregunto al usuario.
 
+Regla para GPS/Temperatura de Vehículos:
+Si el usuario busca verificar el estado de los GPS o la temperatura de unas placas (utilizando la herramienta Verificar_Estado_Placa), debes aplicar la siguiente lógica:
+1. Al consultar la placa, si la herramienta NO encuentra un registro o datos, significa que dicho vehículo no está integrado en Oberon. En este caso tu respuesta DEBE indicar claramente: "La placa [número de placa] no se encuentra registrada en Oberon".
+2. Si la herramienta SÍ devuelve datos para la placa consultada, significa que el vehículo está integrado. En este caso DEBES confirmar que está registrado y mostrar los datos del registro con la información y estado correspondiente.
+
 Herramientas Disponibles:
 
 Primarias: buscarFuncionalidadPorNombre, buscarRegistrosDeFuncionalidad.
 
 Secundarias: BuscarClientes, BuscarUsuarios, BuscarRoles.
 
+Específicas de Integración: Verificar_Estado_Placa, Enviar_Mensaje_WhatsApp.
+
 Exportación a Excel en Funcionalidades: Las tools Obtener_Funcionalidades y Buscar_Registros_De_Funcionalidad soportan el parámetro exportToExcel (booleano, default false). Si el usuario pide exportar datos a Excel, descargar la lista o analizar offline, usa exportToExcel: true en la tool correspondiente. Esto genera un archivo .xlsx con timestamp en /assets/, y proporciona la URL de descarga en meta.excelUrl y meta.excelFilename. Ofrece proactivamente la exportación si hay muchos resultados (e.g., >20) para facilitar el análisis offline.
 
 Conocimiento Interno: guia_filtros_avanzados_oberon.
 `;
 
-    const server = new McpServer({
-        name: "oberon-stremable-http",
-        version: "1.1.0",
-        capabilities: {
-            system: systemPrompt,
-            resources: {},
-            tools: {}
+    const server = new McpServer(
+        {
+            name: "oberon-stremable-http",
+            version: "1.2.0",
+        },
+        {
+            instructions: systemPrompt,
+            capabilities: {
+                prompts: {},
+                resources: {},
+                tools: {}
+            }
         }
-    });
+    );
 
     const apikey = process.env.API_KEY || token;
 
     registerAllTools(server, apikey);
     registerAllResources(server);
-
-    console.log("[Servidor MCP] Todas las herramientas y recursos han sido registrados para la nueva sesión.");
 
     return server;
 }
@@ -143,80 +153,140 @@ async function checkToken(token: string): Promise<boolean> {
 }
 
 app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    let transport: StreamableHTTPServerTransport;
+    try {
+        const sessionId = req.headers['mcp-session-id'] as string | undefined;
+        let transport: StreamableHTTPServerTransport;
+        console.log("Recibida nueva solicitud. Verificando sesión...");
 
+        if (sessionId && transports[sessionId]) {
+            transport = transports[sessionId];
+        } else if (!sessionId && isInitializeRequest(req.body)) {
+            console.log("Recibida nueva solicitud de inicialización. Creando sesión...");
 
-    if (sessionId && transports[sessionId]) {
-        transport = transports[sessionId];
-    } else if (!sessionId && isInitializeRequest(req.body)) {
-        console.log("Recibida nueva solicitud de inicialización. Creando sesión...");
+            transport = new StreamableHTTPServerTransport({
+                sessionIdGenerator: () => randomUUID(),
+                onsessioninitialized: (newSessionId) => {
+                    transports[newSessionId] = transport;
+                    console.log(`[Sesión ${newSessionId}] Creada y almacenada.`);
+                }
+            });
 
-        transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: () => randomUUID(),
-            onsessioninitialized: (newSessionId) => {
-                transports[newSessionId] = transport;
-                console.log(`[Sesión ${newSessionId}] Creada y almacenada.`);
-            },
-            enableDnsRebindingProtection: true,
+            transport.onclose = () => {
+                if (transport.sessionId) {
+                    console.log(`[Sesión ${transport.sessionId}] Cerrada. Eliminando transporte.`);
+                    delete transports[transport.sessionId];
+                }
+            };
+            const tokenValid = await checkToken(req.headers['x-api-key'] as string);
 
-        });
+            console.log("Token válido: " + tokenValid);
 
-        transport.onclose = () => {
-            if (transport.sessionId) {
-                console.log(`[Sesión ${transport.sessionId}] Cerrada. Eliminando transporte.`);
-                delete transports[transport.sessionId];
+            if (!tokenValid) {
+                res.status(401).json({
+                    jsonrpc: '2.0',
+                    error: {
+                        code: -32000,
+                        message: 'Token no válido.',
+                    },
+                    id: null,
+                });
+                return;
             }
-        };
-        const tokenValid = await checkToken(req.headers['x-api-key'] as string);
 
-        if (!tokenValid) {
-            res.status(401).json({
+            const server = createConfiguredMcpServer(req.headers['x-api-key'] as string);
+
+            await server.connect(transport);
+        } else {
+            res.status(400).json({
                 jsonrpc: '2.0',
                 error: {
                     code: -32000,
-                    message: 'Token no válido.',
+                    message: 'Petición incorrecta: No se proporcionó un ID de sesión válido o la petición no es de inicialización.',
                 },
                 id: null,
             });
             return;
         }
 
-        const server = createConfiguredMcpServer(req.headers['x-api-key'] as string);
-
-        await server.connect(transport);
-    } else {
-        res.status(400).json({
-            jsonrpc: '2.0',
-            error: {
-                code: -32000,
-                message: 'Petición incorrecta: No se proporcionó un ID de sesión válido o la petición no es de inicialización.',
-            },
-            id: null,
-        });
-        return;
+        await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+        console.error('Error handling MCP request:', error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                jsonrpc: '2.0',
+                error: {
+                    code: -32603,
+                    message: 'Internal server error'
+                },
+                id: null
+            });
+        }
     }
-
-    await transport.handleRequest(req, res, req.body);
 });
 
-const handleSessionRequest = async (req: express.Request, res: express.Response) => {
+const handleGetSessionRequest = async (req: express.Request, res: express.Response) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
     if (!sessionId || !transports[sessionId]) {
         res.status(400).send('ID de sesión inválido o faltante');
         return;
     }
 
-    const transport = transports[sessionId];
-    await transport.handleRequest(req, res);
+    const lastEventId = req.headers['last-event-id'];
+    if (lastEventId) {
+        console.log(`Cliente reconectando con Last-Event-ID: ${lastEventId} para la sesión ${sessionId}`);
+    } else {
+        console.log(`Estableciendo nuevo stream SSE para la sesión ${sessionId}`);
+    }
+
+    try {
+        const transport = transports[sessionId];
+        await transport.handleRequest(req, res);
+    } catch (error) {
+        console.error('Error handling GET session request:', error);
+        if (!res.headersSent) {
+            res.status(500).send('Error interno del servidor al procesar la conexión SSE');
+        }
+    }
 };
 
-app.get('/mcp', handleSessionRequest);
-app.delete('/mcp', handleSessionRequest);
+const handleDeleteSessionRequest = async (req: express.Request, res: express.Response) => {
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    if (!sessionId || !transports[sessionId]) {
+        res.status(400).send('ID de sesión inválido o faltante');
+        return;
+    }
+    console.log(`Recibida solicitud de terminación de sesión para la sesión ${sessionId}`);
+    try {
+        const transport = transports[sessionId];
+        await transport.handleRequest(req, res);
+    } catch (error) {
+        console.error('Error handling session termination:', error);
+        if (!res.headersSent) {
+            res.status(500).send('Error procesando la terminación de la sesión');
+        }
+    }
+}
 
+app.get('/mcp', handleGetSessionRequest);
+app.delete('/mcp', handleDeleteSessionRequest);
 
 app.listen(PORT, () => {
     console.log(`Servidor MCP de Oberon (Streamable HTTP) iniciado y escuchando en http://localhost:${PORT}/mcp`);
+});
+
+process.on('SIGINT', async () => {
+    console.log('Apagando el servidor MCP...');
+    for (const sessionId in transports) {
+        try {
+            console.log(`Cerrando transporte de la sesión ${sessionId}`);
+            await transports[sessionId].close();
+            delete transports[sessionId];
+        } catch (error) {
+            console.error(`Error al cerrar el transporte de la sesión ${sessionId}:`, error);
+        }
+    }
+    console.log('Apagado del servidor completado');
+    process.exit(0);
 });
 
 
