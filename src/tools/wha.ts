@@ -19,15 +19,7 @@ export function registerWhaTool(server: McpServer, apiClient: AxiosInstance) {
             console.log(`[Herramienta: Enviar_Mensaje_WhatsApp] Enviando mensaje a: ${to.join(", ")}`);
 
             try {
-                // Obtenemos el token dinámicamente del cliente Axios configurado para este MCP session
-                let apiKeyHeader = apiClient.defaults.headers['x-api-key'] || apiClient.defaults.headers['Authorization'] ||
-                    (apiClient.defaults.headers.common && (apiClient.defaults.headers.common['x-api-key'] || apiClient.defaults.headers.common['Authorization']));
 
-                if (!apiKeyHeader) {
-                    throw new Error("No se encontró token de autorización en la instancia del cliente para enviar el mensaje de WhatsApp.");
-                }
-
-                apiKeyHeader = String(apiKeyHeader).replace(/^Bearer\s+/i, '');
 
                 const bodyPayload: any = {
                     to: to,
@@ -39,10 +31,7 @@ export function registerWhaTool(server: McpServer, apiClient: AxiosInstance) {
 
                 const response = await fetch(URL_WHA, {
                     method: 'POST',
-                    headers: {
-                        'bearer': String(apiKeyHeader),
-                        'Content-Type': 'application/json'
-                    },
+
                     body: JSON.stringify(bodyPayload)
                 });
 
