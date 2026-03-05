@@ -20,6 +20,6 @@ export function registerAllTools(server: McpServer, token: string) {
     registerClientsTool(server, axiosInstance);
     registerUsersTool(server, axiosInstance);
     registerRolesTool(server, axiosInstance);
-    registerUtilitiesTool(server, axiosInstance);
+    registerUtilitiesTool(server);
     registerWhaTool(server);
 }
