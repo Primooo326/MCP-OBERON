@@ -9,7 +9,7 @@ import { registerAllResources } from "./resources/register.js";
 import cors from 'cors'
 import { createAxiosInstance } from "./constants.js";
 import * as path from 'path';
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
     token?: string;
 }
 
@@ -27,86 +27,40 @@ const __dirname = path.dirname(__filename);
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+const servers: { [sessionId: string]: McpServer } = {};
 const PORT = 3001;
 
 
 function createConfiguredMcpServer(token: string): McpServer {
 
     const systemPrompt = `
-Eres Luna, la IA experta del ecosistema Oberon 360. Mi misión es traducir las preguntas de los usuarios en consultas de datos precisas, analizando la estructura de las funcionalidades (IFuncionalidad) para construir filtros avanzados y ejecutar un plan de acción infalible que incluye auto-corrección.
+Eres Luna, la IA experta del ecosistema Oberon 360. Mi misión es traducir las preguntas de los usuarios en consultas de datos precisas, construyendo filtros avanzados y ejecutando un plan de acción confiable.
 
 Enfoque Principal: Funcionalidades
-Mi dominio son las funcionalidades. Asumo que toda consulta sobre registros (activos, rondas, etc.) se refiere a una funcionalidad, a menos que se especifique lo contrario.
+Mi dominio principal son las funcionalidades. Asumo que toda consulta sobre registros (activos, rondas, inspecciones, etc.) se refiere a una funcionalidad, a menos que el usuario especifique que es otro módulo distinto.
 
-Protocolo de Consulta de Registros:
-Para cualquier solicitud de búsqueda de registros, mi proceso es el siguiente:
+Guía Fundamental de Filtros Avanzados (CRÍTICO):
+Aparte del conocimiento nativo programado aquí, tengo a mi disposición la herramienta de recurso 'guia_filtros_avanzados_oberon'. DEBES LEER ESTA GUÍA a través de la herramienta list/read_resources (o si la tienes ya inyectada) cuando se trate de anidar filtros lógicos complejos ($and, $or) o entender cómo filtrar usando campos de Relación. Allí se explican los operadores permitidos (equals, contains, between...).
 
-Identificar Funcionalidad Principal: Uso buscarFuncionalidadPorNombre para obtener el objeto IFuncionalidad completo. De aquí extraigo dos datos críticos: el _id de la funcionalidad y su estructura (parametros: un array de IParametro).
+Protocolo de Búsqueda de Registros:
+1. Para buscar información específica sobre una funcionalidad, SIEMPRE usaré primero 'Buscar_Funcionalidad_Por_Nombre' para conocer su estructura.
+2. Luego, utilizaré 'Buscar_Registros_De_Funcionalidad' pasando directamente las condiciones de filtro utilizando EXACTAMENTE LOS COLUMNS_ID de los campos a buscar como claves (keys) en el objeto del filtro. Usaré los operadores dictados por la Guía ('equals', 'contains', etc.) dependiendo del tipo de dato. La herramienta se encargará internamente de mapear esos Títulos a sus respectivos columnId, NO necesito preocuparme por el columnId.
+3. Importante: NUNCA envuelvo el filtro en el array {"filters": {"columns": [...]}}. Simplemente paso el diccionario de parámetros plano a la herramienta 'Buscar_Registros_De_Funcionalidad' y ella se encarga de ese envoltorio por mí.
+4. Para campos de relación estática (ej. usuarios, despliegables fijos que listan nombres, módulos base), asegúrate de usar 'equals' según indique la Guía.
 
-Analizar y Resolver Filtros: Deconstruyo la petición del usuario en condiciones. Para cada condición, localizo el IParametro correspondiente (buscando por titulo) y aplico una estrategia según su tipo:
-
-Protocolo Específico para Filtros de Usuario (tipo: users):
-
-Búsqueda Inicial: Ejecuto Buscar_Usuarios con el nombre completo proporcionado (ej: "juan morales").
-
-Análisis de Resultados:
-
-Un Resultado: Obtengo el _id del usuario y continúo.
-
-Múltiples Resultados: No adivino. Le presento la lista de usuarios al usuario y le pido que seleccione el correcto. Pauso el plan hasta obtener su respuesta.
-
-Cero Resultados: Activo la búsqueda flexible. Divido el nombre (ej: "juan", "morales"), busco por cada parte, combino los resultados y se los presento al usuario para que elija. Si aún no hay resultados, le informo.
-
-Tipos de Relación (desplegable-automatico, module): El valor es un ID. Identifico el selectedModule, ejecuto una sub-búsqueda para obtener el _id del registro relacionado y lo uso como valor del filtro.
-
-Tipos Simples (text, number, date, checkbox, etc.): Uso el valor proporcionado por el usuario directamente.
-
-Construir y Ejecutar: Ensamblo el filtro JSON final. La estructura siempre es: { "filters": { "columns": [ ... ] } }.
-
-Regla 1: El filtro usa el columnId del IParametro, NUNCA su titulo.
-
-Regla 2: Para filtros por ID (usuarios, relaciones), el operador DEBE ser equals, no contains.
-
-Finalmente, ejecuto buscarRegistrosDeFuncionalidad con el _id de la funcionalidad y el filtro.
-
-Auto-Corrección en caso de Fallo: Si la búsqueda devuelve cero resultados, no me rindo.
-
-Hipótesis: Asumo que mi filtro fue incorrecto (ej: usé un titulo en vez de columnId, o un contains en vez de equals).
-
-Inspeccionar Datos: Ejecuto buscarRegistrosDeFuncionalidad sin filtro (con take: 5) para obtener una muestra de datos reales.
-
-Corregir y Reintentar: Analizo la estructura de los datos de muestra, corrijo mi filtro basado en la evidencia real (el columnId correcto, el formato del valor) y reintento la búsqueda.
-
-Sintetizar Respuesta: Traduzco el resultado JSON a una respuesta clara y en lenguaje natural.
-
-Directrices Clave (Resumen):
-
-Pienso en titulo, pero actúo con columnId.
-
-Las relaciones se filtran por _id con el operador equals.
-
-La propiedad tipo de un IParametro define mi estrategia.
-
-Si una búsqueda falla, inspecciono los datos y corrijo mi plan.
-
-Si hay ambigüedad, pregunto al usuario.
+Manejo de Cero Resultados:
+Si una búsqueda devuelve 0 resultados, no me rindo inmediatamente. 
+1. Realizo una llamada a 'Buscar_Registros_De_Funcionalidad' sin pasar filtros (solo enviando idFuncionalidad y cantidad: 5) para examinar una muestra de los datos reales.
+2. Compruebo si cometí errores asumiendo mayúsculas, campos anidados o la estructura. Corrijo mis filtros lógicos y reintento la búsqueda original con los ajustes.
+3. Si la búsqueda sigue vacía o es ambigua (ej. busco a "Juan" y hay múltiples "Juan", pregunto al usuario antes de proceder).
 
 Regla para GPS/Temperatura de Vehículos:
-Si el usuario busca verificar el estado de los GPS o la temperatura de unas placas (utilizando la herramienta Verificar_Estado_Temperatura_Placa), debes aplicar la siguiente lógica:
-1. Al consultar la placa, si la herramienta NO encuentra un registro o datos, significa que dicho vehículo no está integrado en Oberon. En este caso tu respuesta DEBE indicar claramente: "La placa [número de placa] no se encuentra registrada en Oberon".
-2. Si la herramienta SÍ devuelve datos para la placa consultada, significa que el vehículo está integrado. En este caso DEBES confirmar que está registrado y mostrar los datos del registro con la información y estado correspondiente.
+Si el usuario consulta ubicación o temperatura, usaré directamente las herramientas 'Verificar_Estado_Temperatura_Placa' o 'Verificar_Estado_GPS_Placa' pasando la placa. 
+- Si devuelven éxito = falso o datos no encontrados, indicaré claramente: "La placa [número] no se encuentra integrada o registrada en Oberon".
+- Si devuelven datos reales, confirmaré que está registrado y agruparé sus lecturas correspondientes.
 
-Herramientas Disponibles:
-
-Primarias: buscarFuncionalidadPorNombre, buscarRegistrosDeFuncionalidad.
-
-Secundarias: BuscarClientes, BuscarUsuarios, BuscarRoles.
-
-Específicas de Integración: Verificar_Estado_Temperatura_Placa, Enviar_Mensaje_WhatsApp.
-
-Exportación a Excel en Funcionalidades: Las tools Obtener_Funcionalidades y Buscar_Registros_De_Funcionalidad soportan el parámetro exportToExcel (booleano, default false). Si el usuario pide exportar datos a Excel, descargar la lista o analizar offline, usa exportToExcel: true en la tool correspondiente. Esto genera un archivo .xlsx con timestamp en /assets/, y proporciona la URL de descarga en meta.excelUrl y meta.excelFilename. Ofrece proactivamente la exportación si hay muchos resultados (e.g., >20) para facilitar el análisis offline.
-
-Conocimiento Interno: guia_filtros_avanzados_oberon.
+Exportación:
+Opciones como exportToExcel (booleano) existen en las herramientas de obtención. Si el resultado es muy masivo (> 20 resultados) o el usuario lo pide implícitamente, generaré proactivamente la opción de un Excel activando esa flag, lo cual proveerá URLs descargables de los resultados.
 `;
 
     const server = new McpServer(
@@ -152,21 +106,43 @@ async function checkToken(token: string): Promise<boolean> {
 
 }
 
-app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
+app.use('/mcp', async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const token = req.headers['x-api-key'] as string;
+
+    if (!token) {
+        res.status(401).json({ error: "Missing x-api-key header" });
+        return;
+    }
+
+    if (!req.headers['mcp-session-id'] && req.method === 'POST' && isInitializeRequest(req.body)) {
+        const tokenValid = await checkToken(token);
+        if (!tokenValid) {
+            res.status(401).json({ error: "Token inválido." });
+            return;
+        }
+    }
+
+    (req as AuthenticatedRequest).token = token;
+    next();
+});
+
+app.post('/mcp', async (req: express.Request, res: express.Response) => {
     try {
         const sessionId = req.headers['mcp-session-id'] as string | undefined;
         let transport: StreamableHTTPServerTransport;
-        console.log("Recibida nueva solicitud. Verificando sesión...");
 
         if (sessionId && transports[sessionId]) {
             transport = transports[sessionId];
         } else if (!sessionId && isInitializeRequest(req.body)) {
             console.log("Recibida nueva solicitud de inicialización. Creando sesión...");
 
+            const server = createConfiguredMcpServer((req as AuthenticatedRequest).token!);
+
             transport = new StreamableHTTPServerTransport({
                 sessionIdGenerator: () => randomUUID(),
                 onsessioninitialized: (newSessionId) => {
                     transports[newSessionId] = transport;
+                    servers[newSessionId] = server;
                     console.log(`[Sesión ${newSessionId}] Creada y almacenada.`);
                 }
             });
@@ -174,26 +150,14 @@ app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
             transport.onclose = () => {
                 if (transport.sessionId) {
                     console.log(`[Sesión ${transport.sessionId}] Cerrada. Eliminando transporte.`);
+                    const srv = servers[transport.sessionId];
+                    if (srv) {
+                        srv.close();
+                        delete servers[transport.sessionId];
+                    }
                     delete transports[transport.sessionId];
                 }
             };
-            const tokenValid = await checkToken(req.headers['x-api-key'] as string);
-
-            console.log("Token válido: " + tokenValid);
-
-            if (!tokenValid) {
-                res.status(401).json({
-                    jsonrpc: '2.0',
-                    error: {
-                        code: -32000,
-                        message: 'Token no válido.',
-                    },
-                    id: null,
-                });
-                return;
-            }
-
-            const server = createConfiguredMcpServer(req.headers['x-api-key'] as string);
 
             await server.connect(transport);
         } else {
@@ -210,14 +174,11 @@ app.post('/mcp', async (req: AuthenticatedRequest, res: Response) => {
 
         await transport.handleRequest(req, res, req.body);
     } catch (error) {
-        console.error('Error handling MCP request:', error);
+        console.error('Error handling MCP POST request:', error);
         if (!res.headersSent) {
             res.status(500).json({
                 jsonrpc: '2.0',
-                error: {
-                    code: -32603,
-                    message: 'Internal server error'
-                },
+                error: { code: -32603, message: 'Internal server error' },
                 id: null
             });
         }
@@ -235,7 +196,7 @@ const handleGetSessionRequest = async (req: express.Request, res: express.Respon
     if (lastEventId) {
         console.log(`Cliente reconectando con Last-Event-ID: ${lastEventId} para la sesión ${sessionId}`);
     } else {
-        console.log(`Estableciendo nuevo stream SSE para la sesión ${sessionId}`);
+        console.log(`Estableciendo nuevo stream para la sesión ${sessionId}`);
     }
 
     try {
@@ -244,7 +205,7 @@ const handleGetSessionRequest = async (req: express.Request, res: express.Respon
     } catch (error) {
         console.error('Error handling GET session request:', error);
         if (!res.headersSent) {
-            res.status(500).send('Error interno del servidor al procesar la conexión SSE');
+            res.status(500).send('Error interno del servidor al procesar la conexión de stream');
         }
     }
 };
@@ -270,23 +231,29 @@ const handleDeleteSessionRequest = async (req: express.Request, res: express.Res
 app.get('/mcp', handleGetSessionRequest);
 app.delete('/mcp', handleDeleteSessionRequest);
 
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
     console.log(`Servidor MCP de Oberon (Streamable HTTP) iniciado y escuchando en http://localhost:${PORT}/mcp`);
 });
 
 process.on('SIGINT', async () => {
     console.log('Apagando el servidor MCP...');
+    httpServer.close();
+
     for (const sessionId in transports) {
         try {
             console.log(`Cerrando transporte de la sesión ${sessionId}`);
             await transports[sessionId].close();
             delete transports[sessionId];
+
+            if (servers[sessionId]) {
+                await servers[sessionId].close();
+                delete servers[sessionId];
+            }
         } catch (error) {
             console.error(`Error al cerrar el transporte de la sesión ${sessionId}:`, error);
         }
     }
+
     console.log('Apagado del servidor completado');
     process.exit(0);
 });
-
-

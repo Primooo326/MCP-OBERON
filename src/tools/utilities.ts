@@ -7,7 +7,7 @@ const FUNCT_ID_TEMPERATURA = '68640ae722068f1bff55f76a';
 const FUNCT_ID_GPS = '68483d789596d9d122f7222a'; // MAPA OPERATIVO
 const FUNCT_ID_VEHICULO = '68192b4aa8179b37f7eff226';
 const FUNCT_ID_SENSOR = '68192cc7a8179b37f7f004e6';
-const EXTERNAL_API_KEY = 'e3428fd9b401b15c55f6c32b1a092d1d577446517114856b4d9d0264f2c459ae';
+const EXTERNAL_API_KEY = process.env.EXTERNAL_API_KEY || '';
 
 
 
@@ -18,9 +18,9 @@ export function registerUtilitiesTool(server: McpServer) {
 
     server.tool(
         "Verificar_Estado_Temperatura_Placa",
-        "Verifica el estado métrico e historiales temporales y GPS de un vehículo a partir de su placa. Retorna la información más reciente registrada incluyendo la fecha.",
+        "Verifica el estado métrico y de temperatura de un vehículo a partir de su placa. Retorna la información más reciente de temperatura registrada incluyendo la fecha.",
         {
-            placa: z.string().describe("Placa del vehículo a consultar (se pasará a mayúsculas automáticamente).")
+            placa: z.string().describe("Placa del vehículo a consultar para temperatura.").transform(val => val.toUpperCase().trim())
         },
         async ({ placa }) => {
 
@@ -31,7 +31,7 @@ export function registerUtilitiesTool(server: McpServer) {
                         {
                             "ca995800d0": {
                                 "label": {
-                                    "equals": placa.toUpperCase().trim()
+                                    "equals": placa
                                 }
                             }
                         }
@@ -85,9 +85,9 @@ export function registerUtilitiesTool(server: McpServer) {
 
     server.tool(
         "Verificar_Estado_GPS_Placa",
-        "Verifica el estado métrico e historiales temporales y GPS de un vehículo a partir de su placa. Retorna la información más reciente registrada incluyendo la fecha.",
+        "Verifica historial y la ubicación GPS actual de un vehículo a partir de su placa. Retorna la información más reciente de ubicación (lat, lng, velocidad).",
         {
-            placa: z.string().describe("Placa del vehículo a consultar (se pasará a mayúsculas automáticamente).")
+            placa: z.string().describe("Placa del vehículo a consultar para GPS.").transform(val => val.toUpperCase().trim())
         },
         async ({ placa }) => {
 
@@ -101,7 +101,7 @@ export function registerUtilitiesTool(server: McpServer) {
                         "columns": [
                             {
                                 "91c2de084j": {
-                                    "equals": placa.toUpperCase().trim()
+                                    "equals": placa
                                 }
                             }
                         ]
@@ -121,7 +121,14 @@ export function registerUtilitiesTool(server: McpServer) {
                     throw new Error(`Error de red: ${responseVehiculos.statusText}`);
                 }
 
-                const data_vehiculo = (await responseVehiculos.json()).data[0];
+                const jsonVehiculos = await responseVehiculos.json();
+                const data_vehiculo = jsonVehiculos.data && jsonVehiculos.data.length > 0 ? jsonVehiculos.data[0] : null;
+
+                if (!data_vehiculo) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ success: false, message: `Vehículo con placa ${placa} no encontrado.` }, null, 2) }]
+                    };
+                }
 
                 console.log("Data vehiculo:::", data_vehiculo)
 
@@ -132,7 +139,7 @@ export function registerUtilitiesTool(server: McpServer) {
                             {
                                 "641a4300vx": {
                                     "label": {
-                                        "equals": placa.toUpperCase().trim()
+                                        "equals": placa
                                     }
                                 }
                             }
@@ -153,7 +160,14 @@ export function registerUtilitiesTool(server: McpServer) {
                     throw new Error(`Error de red: ${responseSensores.statusText}`);
                 }
 
-                const data_sensores = (await responseSensores.json()).data[0];
+                const jsonSensores = await responseSensores.json();
+                const data_sensores = jsonSensores.data && jsonSensores.data.length > 0 ? jsonSensores.data[0] : null;
+
+                if (!data_sensores) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ success: false, message: `Sensores para el vehículo ${placa} no encontrados.` }, null, 2) }]
+                    };
+                }
 
                 console.log("Data sensores:::", data_sensores)
 
@@ -185,7 +199,14 @@ export function registerUtilitiesTool(server: McpServer) {
                     throw new Error(`Error de red: ${responseGps.statusText}`);
                 }
 
-                const data_gps = await responseGps.json();
+                const jsonGps = await responseGps.json();
+                const data_gps = jsonGps.data && jsonGps.data.length > 0 ? jsonGps.data[0] : null;
+
+                if (!data_gps) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ success: false, message: `Datos de GPS para el sensor del vehículo ${placa} no encontrados.` }, null, 2) }]
+                    };
+                }
 
                 console.log("Data gps:::", data_gps)
 
@@ -202,10 +223,10 @@ export function registerUtilitiesTool(server: McpServer) {
 
                     },
                     gps: {
-                        estado: data_gps.data[0]['3020140b4c'],
-                        velocidad: data_gps.data[0]['30201409fq'],
-                        fechaReporte: data_gps.data[0]['30201406jl'],
-                        ubicacion: data_gps.data[0]['70eb3c00mt'],
+                        estado: data_gps['3020140b4c'],
+                        velocidad: data_gps['30201409fq'],
+                        fechaReporte: data_gps['30201406jl'],
+                        ubicacion: data_gps['70eb3c00mt'],
 
                     }
                 }
