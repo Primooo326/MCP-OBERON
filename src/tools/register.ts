@@ -1,6 +1,7 @@
 import { registerClientsTool } from "./clients.js";
 import { registerUsersTool } from "./users.js";
 import { registerRolesTool } from "./roles.js";
+import { registerPermisosTool } from "./permisos.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createAxiosInstance } from "../constants.js";
 import { registerFunctionalitiesTool } from "./functionalities.js";
@@ -20,6 +21,7 @@ export function registerAllTools(server: McpServer, token: string) {
     registerClientsTool(server, axiosInstance);
     registerUsersTool(server, axiosInstance);
     registerRolesTool(server, axiosInstance);
+    registerPermisosTool(server, axiosInstance);
     registerUtilitiesTool(server);
     registerWhaTool(server);
 }
