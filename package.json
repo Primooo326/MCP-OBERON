@@ -8,7 +8,7 @@
   "license": "ISC",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p build/assets && cp -r src/assets/* build/assets/",
     "inspect:oberon": "npx @modelcontextprotocol/inspector node build/oberon.js",
     "inspect:weather": "npx @modelcontextprotocol/inspector node build/weather.js",
     "inspect": "npx @modelcontextprotocol/inspector http://localhost:3000/mcp",

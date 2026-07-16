@@ -16,6 +16,9 @@ services:
     ports:
       - "3001:3001"
 
+    volumes:
+      - ./downloads:/usr/src/app/build/downloads
+
     # Política de reinicio. 'unless-stopped' reinicia el contenedor si falla
     # o si se reinicia el sistema, a menos que lo hayas detenido manualmente.
     restart: unless-stopped

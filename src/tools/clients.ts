@@ -24,7 +24,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
             orden: z.enum(["ASC", "DESC"]).optional().default("ASC").describe("Orden de la lista de clientes (por defecto ASC)."),
         },
         async ({ terminoBusqueda, cantidad, pagina, orden }) => {
-            logToolExecution({
+            await logToolExecution({
                 toolName: "Obtener Clientes",
                 level: "INFO",
                 parameters: { terminoBusqueda, cantidad, pagina, orden },
@@ -42,7 +42,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 const meta = response.data.meta;
 
                 if (!clientes || clientes.length === 0) {
-                    logToolExecution({
+                    await logToolExecution({
                         toolName: "Obtener Clientes",
                         level: "INFO",
                         parameters: { terminoBusqueda, cantidad, pagina, orden },
@@ -59,7 +59,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                     return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
-                logToolExecution({
+                await logToolExecution({
                     toolName: "Obtener Clientes",
                     level: "INFO",
                     parameters: { terminoBusqueda, cantidad, pagina, orden },
@@ -83,7 +83,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 };
 
             } catch (error: any) {
-                logToolExecution({
+                await logToolExecution({
                     toolName: "Obtener Clientes",
                     level: "ERROR",
                     parameters: { terminoBusqueda, cantidad, pagina, orden },
@@ -110,7 +110,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
             id: z.string().describe("ID del cliente a buscar."),
         },
         async ({ id }) => {
-            logToolExecution({
+            await logToolExecution({
                 toolName: "Obtener Cliente por ID",
                 level: "INFO",
                 parameters: { id },
@@ -126,7 +126,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 const meta = response.data.meta;
 
                 if (!clientes || clientes.length === 0) {
-                    logToolExecution({
+                    await logToolExecution({
                         toolName: "Obtener Cliente por ID",
                         level: "INFO",
                         parameters: { id },
@@ -143,7 +143,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 }
 
                 const cliente = clientes[0];
-                logToolExecution({
+                await logToolExecution({
                     toolName: "Obtener Cliente por ID",
                     level: "INFO",
                     parameters: { id },
@@ -166,7 +166,7 @@ export function registerClientsTool(server: McpServer, apiClient: AxiosInstance)
                 };
 
             } catch (error: any) {
-                logToolExecution({
+                await logToolExecution({
                     toolName: "Obtener Cliente por ID",
                     level: "ERROR",
                     parameters: { id },

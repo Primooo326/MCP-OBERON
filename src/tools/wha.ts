@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
+import { logToolExecution } from "../logging.js";
 
 export function registerWhaTool(server: McpServer) {
     console.log(`[Tools] Registrando herramienta de WhatsApp en el servidor...`);
@@ -13,6 +14,15 @@ export function registerWhaTool(server: McpServer) {
             replyMessageId: z.string().optional().describe("ID del mensaje al cual se quiere responder (para hacer un quote). Opcional.")
         },
         async ({ message, to, replyMessageId }) => {
+            const toolName = "Enviar Mensaje WhatsApp";
+            const logParams = { to, replyMessageId };
+            await logToolExecution({
+                toolName,
+                level: "INFO",
+                parameters: logParams,
+                status: "STARTED",
+                message: `Iniciando envío de mensaje por WhatsApp a ${to.length} destinatarios.`,
+            });
             const URL_WHA = "https://wha.oberon360.com/api/wha/send";
 
             console.log(`[Herramienta: Enviar_Mensaje_WhatsApp] Enviando mensaje a: ${to.join(", ")}`);
@@ -42,6 +52,15 @@ export function registerWhaTool(server: McpServer) {
 
                 const data = await response.json().catch(() => ({}));
 
+                await logToolExecution({
+                    toolName,
+                    level: "INFO",
+                    parameters: logParams,
+                    status: "SUCCESS",
+                    message: `Mensaje enviado exitosamente a: ${to.join(", ")}`,
+                    details: data
+                });
+
                 return {
                     content: [
                         {
@@ -51,6 +70,14 @@ export function registerWhaTool(server: McpServer) {
                     ]
                 };
             } catch (error: any) {
+                await logToolExecution({
+                    toolName,
+                    level: "ERROR",
+                    parameters: logParams,
+                    status: "FAILURE",
+                    message: `Error al enviar mensaje por WhatsApp: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: Enviar_Mensaje_WhatsApp] Error enviando mensaje a ${to.join(", ")}:`, error.message);
                 return {
                     content: [

@@ -1,5 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import fs from "fs/promises";
+import { fileURLToPath } from "node:url";
+import * as path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 export function registerFunctionalitiesResource(server: McpServer) {
@@ -484,12 +489,15 @@ export function registerFunctionalitiesResource(server: McpServer) {
             description: "Para realizar búsquedas avanzadas, debes construir un objeto de filtro en formato JSON.Este objeto se traduce internamente en una consulta a la base de datos MongoDB.",
             "mimeType": "text/markdown",
         },
-        async (uri) => ({
-            contents: [{
-                uri: uri.href,
-                text: await fs.readFile(uri.href, "utf8"),
-            }]
-        })
+        async (uri) => {
+            const filePath = path.join(__dirname, "../assets/guia_filtros_avanzados_oberon.md");
+            return {
+                contents: [{
+                    uri: uri.href,
+                    text: await fs.readFile(filePath, "utf8"),
+                }]
+            };
+        }
     );
 
 }

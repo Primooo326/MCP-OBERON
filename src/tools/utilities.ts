@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AxiosInstance } from "axios";
 import z from "zod";
+import { logToolExecution } from "../logging.js";
 
 const URL_OBERON = 'https://api.dev.oberon360.com/api/functionalities/register/findAllFiltersDav/';
 const FUNCT_ID_TEMPERATURA = '68640ae722068f1bff55f76a';
@@ -8,9 +9,6 @@ const FUNCT_ID_GPS = '68483d789596d9d122f7222a'; // MAPA OPERATIVO
 const FUNCT_ID_VEHICULO = '68192b4aa8179b37f7eff226';
 const FUNCT_ID_SENSOR = '68192cc7a8179b37f7f004e6';
 const EXTERNAL_API_KEY = process.env.EXTERNAL_API_KEY || '';
-
-
-
 
 
 export function registerUtilitiesTool(server: McpServer) {
@@ -23,7 +21,15 @@ export function registerUtilitiesTool(server: McpServer) {
             placa: z.string().describe("Placa del vehículo a consultar para temperatura.").transform(val => val.toUpperCase().trim())
         },
         async ({ placa }) => {
-
+            const toolName = "Verificar Estado Temperatura Placa";
+            const logParams = { placa };
+            await logToolExecution({
+                toolName,
+                level: "INFO",
+                parameters: logParams,
+                status: "STARTED",
+                message: `Iniciando verificación de temperatura para la placa: ${placa}`,
+            });
 
             const body = {
                 "filters": {
@@ -57,6 +63,15 @@ export function registerUtilitiesTool(server: McpServer) {
 
                 const data = await response.json();
 
+                await logToolExecution({
+                    toolName,
+                    level: "INFO",
+                    parameters: logParams,
+                    status: "SUCCESS",
+                    message: `Verificación de temperatura completada para la placa ${placa}.`,
+                    details: { found: !!(data.data && data.data.length > 0) }
+                });
+
                 return {
                     content: [
                         {
@@ -66,6 +81,14 @@ export function registerUtilitiesTool(server: McpServer) {
                     ]
                 };
             } catch (error: any) {
+                await logToolExecution({
+                    toolName,
+                    level: "ERROR",
+                    parameters: logParams,
+                    status: "FAILURE",
+                    message: `Error al verificar temperatura para la placa ${placa}: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: Verificar_Estado_Temperatura_Placa] Error consultando placa ${placa}:`, error.message);
                 return {
                     content: [
@@ -90,8 +113,15 @@ export function registerUtilitiesTool(server: McpServer) {
             placa: z.string().describe("Placa del vehículo a consultar para GPS.").transform(val => val.toUpperCase().trim())
         },
         async ({ placa }) => {
-
-
+            const toolName = "Verificar Estado GPS Placa";
+            const logParams = { placa };
+            await logToolExecution({
+                toolName,
+                level: "INFO",
+                parameters: logParams,
+                status: "STARTED",
+                message: `Iniciando verificación de GPS para la placa: ${placa}`,
+            });
 
             try {
                 console.log(`[Herramienta: Verificar_Estado_GPS_Placa] Consultando placa: ${placa}`);
@@ -118,13 +148,21 @@ export function registerUtilitiesTool(server: McpServer) {
                 });
 
                 if (!responseVehiculos.ok) {
-                    throw new Error(`Error de red: ${responseVehiculos.statusText}`);
+                    throw new Error(`Error de red al consultar vehículo: ${responseVehiculos.statusText}`);
                 }
 
                 const jsonVehiculos = await responseVehiculos.json();
                 const data_vehiculo = jsonVehiculos.data && jsonVehiculos.data.length > 0 ? jsonVehiculos.data[0] : null;
 
                 if (!data_vehiculo) {
+                    await logToolExecution({
+                        toolName,
+                        level: "INFO",
+                        parameters: logParams,
+                        status: "SUCCESS",
+                        message: `Vehículo con placa ${placa} no encontrado.`,
+                        details: { success: false }
+                    });
                     return {
                         content: [{ type: "text", text: JSON.stringify({ success: false, message: `Vehículo con placa ${placa} no encontrado.` }, null, 2) }]
                     };
@@ -157,13 +195,21 @@ export function registerUtilitiesTool(server: McpServer) {
                 });
 
                 if (!responseSensores.ok) {
-                    throw new Error(`Error de red: ${responseSensores.statusText}`);
+                    throw new Error(`Error de red al consultar sensores: ${responseSensores.statusText}`);
                 }
 
                 const jsonSensores = await responseSensores.json();
                 const data_sensores = jsonSensores.data && jsonSensores.data.length > 0 ? jsonSensores.data[0] : null;
 
                 if (!data_sensores) {
+                    await logToolExecution({
+                        toolName,
+                        level: "INFO",
+                        parameters: logParams,
+                        status: "SUCCESS",
+                        message: `Sensores para el vehículo ${placa} no encontrados.`,
+                        details: { success: false }
+                    });
                     return {
                         content: [{ type: "text", text: JSON.stringify({ success: false, message: `Sensores para el vehículo ${placa} no encontrados.` }, null, 2) }]
                     };
@@ -196,13 +242,21 @@ export function registerUtilitiesTool(server: McpServer) {
                 });
 
                 if (!responseGps.ok) {
-                    throw new Error(`Error de red: ${responseGps.statusText}`);
+                    throw new Error(`Error de red al consultar GPS: ${responseGps.statusText}`);
                 }
 
                 const jsonGps = await responseGps.json();
                 const data_gps = jsonGps.data && jsonGps.data.length > 0 ? jsonGps.data[0] : null;
 
                 if (!data_gps) {
+                    await logToolExecution({
+                        toolName,
+                        level: "INFO",
+                        parameters: logParams,
+                        status: "SUCCESS",
+                        message: `Datos de GPS para el sensor del vehículo ${placa} no encontrados.`,
+                        details: { success: false }
+                    });
                     return {
                         content: [{ type: "text", text: JSON.stringify({ success: false, message: `Datos de GPS para el sensor del vehículo ${placa} no encontrados.` }, null, 2) }]
                     };
@@ -231,6 +285,14 @@ export function registerUtilitiesTool(server: McpServer) {
                     }
                 }
 
+                await logToolExecution({
+                    toolName,
+                    level: "INFO",
+                    parameters: logParams,
+                    status: "SUCCESS",
+                    message: `Verificación de GPS completada para la placa ${placa}.`,
+                    details: { success: true }
+                });
 
                 return {
                     content: [
@@ -241,6 +303,14 @@ export function registerUtilitiesTool(server: McpServer) {
                     ]
                 };
             } catch (error: any) {
+                await logToolExecution({
+                    toolName,
+                    level: "ERROR",
+                    parameters: logParams,
+                    status: "FAILURE",
+                    message: `Error al verificar GPS para la placa ${placa}: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: Verificar_Estado_GPS_Placa] Error consultando placa ${placa}:`, error.message);
                 return {
                     content: [

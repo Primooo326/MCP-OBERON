@@ -1,9 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AxiosInstance } from "axios";
 import z from "zod";
-
-
-
+import { logToolExecution } from "../logging.js";
 
 export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
@@ -20,6 +18,15 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
             orden: z.enum(["ASC", "DESC"]).optional().default("ASC").describe("Orden de la lista de usuarios (por defecto ASC)."),
         },
         async ({ terminoBusqueda, cantidad, pagina, orden }) => {
+            const toolName = "Obtener Usuarios";
+            const logParams = { terminoBusqueda, cantidad, pagina, orden };
+            await logToolExecution({
+                toolName,
+                level: "INFO",
+                parameters: logParams,
+                status: "STARTED",
+                message: "Iniciando ejecución de la herramienta Obtener Usuarios.",
+            });
             try {
                 const params = { take: cantidad, term: terminoBusqueda, page: pagina, order: orden };
                 console.log(`[Herramienta: obtenerUsuarios] Llamando a /core/users con params:`, params);
@@ -31,6 +38,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const meta = response.data.meta;
 
                 if (!usuarios || usuarios.length === 0) {
+                    await logToolExecution({
+                        toolName,
+                        level: "INFO",
+                        parameters: logParams,
+                        status: "SUCCESS",
+                        message: "No se encontraron usuarios.",
+                        details: { usuariosEncontrados: 0 }
+                    });
                     const jsonResponse = JSON.stringify({
                         type: "list",
                         data: [],
@@ -40,6 +55,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                     return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
+                await logToolExecution({
+                    toolName,
+                    level: "INFO",
+                    parameters: logParams,
+                    status: "SUCCESS",
+                    message: `Se encontraron ${usuarios.length} usuarios.`,
+                    details: { usuariosEncontrados: usuarios.length, meta }
+                });
                 const jsonResponse = JSON.stringify({
                     type: "list",
                     data: usuarios,
@@ -56,6 +79,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 };
 
             } catch (error: any) {
+                await logToolExecution({
+                    toolName,
+                    level: "ERROR",
+                    parameters: logParams,
+                    status: "FAILURE",
+                    message: `Error al obtener usuarios: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: obtenerUsuarios] Error: ${error.message}`);
                 const errorJson = JSON.stringify({
                     type: "error",
@@ -75,6 +106,15 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
             id: z.string().describe("ID del usuario a buscar."),
         },
         async ({ id }) => {
+            const toolName = "Obtener Usuario por ID";
+            const logParams = { id };
+            await logToolExecution({
+                toolName,
+                level: "INFO",
+                parameters: logParams,
+                status: "STARTED",
+                message: `Iniciando ejecución de la herramienta Obtener Usuario por ID para: ${id}`,
+            });
             try {
                 console.log(`[Herramienta: obtenerUsuario] Llamando a /core/users/${id}...`);
 
@@ -83,6 +123,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const meta = response.data.meta;
 
                 if (!usuarios || usuarios.length === 0) {
+                    await logToolExecution({
+                        toolName,
+                        level: "INFO",
+                        parameters: logParams,
+                        status: "SUCCESS",
+                        message: `Usuario con ID ${id} no encontrado.`,
+                        details: { found: false }
+                    });
                     const jsonResponse = JSON.stringify({
                         type: "detail",
                         data: null,
@@ -92,6 +140,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 }
 
                 const usuario = usuarios[0];
+                await logToolExecution({
+                    toolName,
+                    level: "INFO",
+                    parameters: logParams,
+                    status: "SUCCESS",
+                    message: `Usuario con ID ${id} encontrado.`,
+                    details: { found: true }
+                });
                 const jsonResponse = JSON.stringify({
                     type: "detail",
                     data: usuario,
@@ -107,6 +163,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 };
 
             } catch (error: any) {
+                await logToolExecution({
+                    toolName,
+                    level: "ERROR",
+                    parameters: logParams,
+                    status: "FAILURE",
+                    message: `Error al obtener usuario por ID: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: obtenerUsuario] Error: ${error.message}`);
                 const errorJson = JSON.stringify({
                     type: "error",
@@ -126,6 +190,15 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
             clientId: z.string().describe("ID del cliente a buscar."),
         },
         async ({ clientId }) => {
+            const toolName = "Obtener Usuarios por Cliente";
+            const logParams = { clientId };
+            await logToolExecution({
+                toolName,
+                level: "INFO",
+                parameters: logParams,
+                status: "STARTED",
+                message: `Iniciando consulta de usuarios para cliente: ${clientId}`,
+            });
             try {
                 console.log(`[Herramienta: obtenerUsuariosPorCliente] Llamando a /core/users/getUsersByClientId/${clientId}...`);
 
@@ -134,6 +207,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const meta = response.data.meta;
 
                 if (!usuarios || usuarios.length === 0) {
+                    await logToolExecution({
+                        toolName,
+                        level: "INFO",
+                        parameters: logParams,
+                        status: "SUCCESS",
+                        message: `No se encontraron usuarios para el cliente: ${clientId}`,
+                        details: { count: 0 }
+                    });
                     const jsonResponse = JSON.stringify({
                         type: "list",
                         data: [],
@@ -143,6 +224,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                     return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
+                await logToolExecution({
+                    toolName,
+                    level: "INFO",
+                    parameters: logParams,
+                    status: "SUCCESS",
+                    message: `Se encontraron ${usuarios.length} usuarios para el cliente ${clientId}.`,
+                    details: { count: usuarios.length, meta }
+                });
                 const jsonResponse = JSON.stringify({
                     type: "list",
                     data: usuarios,
@@ -159,6 +248,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 };
 
             } catch (error: any) {
+                await logToolExecution({
+                    toolName,
+                    level: "ERROR",
+                    parameters: logParams,
+                    status: "FAILURE",
+                    message: `Error al obtener usuarios por cliente: ${error.message}`,
+                    details: { error: error.message, stack: error.stack }
+                });
                 console.error(`[Herramienta: obtenerUsuariosPorCliente] Error: ${error.message}`);
                 const errorJson = JSON.stringify({
                     type: "error",
@@ -184,6 +281,15 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
             locations: z.array(z.string()).describe("Una lista de los IDs de las ubicaciones a asignar."),
         },
         async ({ rolId, name, username, cellphone, email, numeroIdentificacion, locations }) => {
+            const toolName = "Crear Usuario";
+            const logParams = { rolId, name, username, email, numeroIdentificacion };
+            await logToolExecution({
+                toolName,
+                level: "INFO",
+                parameters: logParams,
+                status: "STARTED",
+                message: `Iniciando creación del usuario: ${username}`,
+            });
 
             const formattedLocations = locations.map(id => ({ locationId: id }));
 
@@ -206,6 +312,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 const usuarioCreado = response.data;
 
                 if (!usuarioCreado) {
+                    await logToolExecution({
+                        toolName,
+                        level: "INFO",
+                        parameters: logParams,
+                        status: "SUCCESS",
+                        message: `Usuario ${username} creado (la API no retornó datos del usuario).`,
+                        details: { success: true }
+                    });
                     const jsonResponse = JSON.stringify({
                         type: "create",
                         data: null,
@@ -215,6 +329,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                     return { content: [{ type: "text", text: jsonResponse }] };
                 }
 
+                await logToolExecution({
+                    toolName,
+                    level: "INFO",
+                    parameters: logParams,
+                    status: "SUCCESS",
+                    message: `Usuario ${username} creado exitosamente.`,
+                    details: { success: true, userId: usuarioCreado.id || usuarioCreado._id }
+                });
                 const jsonResponse = JSON.stringify({
                     type: "create",
                     data: usuarioCreado,
@@ -231,6 +353,14 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 };
 
             } catch (error: any) {
+                await logToolExecution({
+                    toolName,
+                    level: "ERROR",
+                    parameters: logParams,
+                    status: "FAILURE",
+                    message: `Error al crear usuario ${username}: ${error.message}`,
+                    details: { error: error.message, response: error.response?.data, stack: error.stack }
+                });
                 console.error(`[Herramienta: crearUsuario] Error: ${error.message}`);
 
                 const errorData = error.response?.data?.message || "Ocurrió un error al crear el usuario.";

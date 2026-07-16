@@ -9,6 +9,8 @@ import { registerAllResources } from "./resources/register.js";
 import cors from 'cors'
 import { createAxiosInstance } from "./constants.js";
 import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 export interface AuthenticatedRequest extends Request {
     token?: string;
 }
@@ -78,7 +80,7 @@ Opciones como exportToExcel (booleano) existen en las herramientas de obtención
         }
     );
 
-    const apikey = process.env.API_KEY || token;
+    const apikey = token || process.env.API_KEY || "";
 
     registerAllTools(server, apikey);
     registerAllResources(server);
@@ -231,8 +233,33 @@ const handleDeleteSessionRequest = async (req: express.Request, res: express.Res
 app.get('/mcp', handleGetSessionRequest);
 app.delete('/mcp', handleDeleteSessionRequest);
 
+async function cleanupDownloads() {
+    const downloadsDir = path.join(__dirname, 'downloads');
+    if (!existsSync(downloadsDir)) {
+        return;
+    }
+    try {
+        const files = await fs.readdir(downloadsDir);
+        const now = Date.now();
+        const MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días
+        
+        for (const file of files) {
+            const filePath = path.join(downloadsDir, file);
+            const stats = await fs.stat(filePath);
+            if (now - stats.mtimeMs > MAX_AGE) {
+                await fs.unlink(filePath);
+                console.log(`[Limpieza] Archivo viejo eliminado: ${file}`);
+            }
+        }
+    } catch (error) {
+        console.error('[Limpieza] Error al limpiar descargas:', error);
+    }
+}
+
 const httpServer = app.listen(PORT, () => {
     console.log(`Servidor MCP de Oberon (Streamable HTTP) iniciado y escuchando en http://localhost:${PORT}/mcp`);
+    cleanupDownloads();
+    setInterval(cleanupDownloads, 24 * 60 * 60 * 1000);
 });
 
 process.on('SIGINT', async () => {
