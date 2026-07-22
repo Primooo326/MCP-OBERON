@@ -10,7 +10,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
 
     server.tool(
         "Obtener_Usuarios",
-        "Busca y devuelve una lista detallada de usuarios del sistema, incluyendo su rol, zona y ubicaciones. Devuelve datos en formato JSON parseable en el campo 'text'.",
+        "Busca y devuelve una lista detallada de usuarios del sistema (/core/users), incluyendo su rol, zona y ubicaciones. Es la herramienta EXCLUSIVA para consultar usuarios. Para buscar por correo, nombre o username, simplemente pasa el valor en 'terminoBusqueda'. Devuelve datos en formato JSON parseable en el campo 'text'.",
         {
             terminoBusqueda: z.string().optional().describe("Texto para buscar por nombre, email, username, etc."),
             cantidad: z.number().optional().default(10).describe("Número de usuarios a devolver (por defecto 10)."),

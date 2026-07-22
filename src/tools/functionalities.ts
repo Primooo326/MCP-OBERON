@@ -22,6 +22,115 @@ function translateFilterKeys(filterObj: any, titleToIdMap: Map<string, string>):
     return newFilter;
 }
 
+const DATE_OPS = new Set(['between', 'gte', 'lte', 'gt', 'lt']);
+
+function extractDateFilters(filterObj: any, dateColumns: Set<string>): { apiFilter: any, dateFilter: any } {
+    if (typeof filterObj !== 'object' || filterObj === null) return { apiFilter: filterObj, dateFilter: null };
+    if (Array.isArray(filterObj)) {
+        const results = filterObj.map(item => extractDateFilters(item, dateColumns));
+        const apiItems = results.map(r => r.apiFilter).filter(f => f !== null && (typeof f !== 'object' || Object.keys(f).length > 0));
+        const dateItems = results.map(r => r.dateFilter).filter(Boolean);
+        return {
+            apiFilter: apiItems.length > 0 ? apiItems : null,
+            dateFilter: dateItems.length > 0 ? dateItems : null
+        };
+    }
+    const apiFilter: any = {};
+    const dateComparisons: any[] = [];
+    for (const key in filterObj) {
+        if (key.startsWith('$')) {
+            const { apiFilter: nestedApi, dateFilter: nestedDate } = extractDateFilters(filterObj[key], dateColumns);
+            if (nestedApi !== null && (Array.isArray(nestedApi) ? nestedApi.length > 0 : Object.keys(nestedApi).length > 0)) {
+                apiFilter[key] = nestedApi;
+            }
+            if (nestedDate) {
+                dateComparisons.push(...(Array.isArray(nestedDate) ? nestedDate : [nestedDate]));
+            }
+        } else if (dateColumns.has(key)) {
+            const value = filterObj[key];
+            if (typeof value === 'object' && value !== null) {
+                const dateOps: any = {};
+                const otherOps: any = {};
+                for (const op in value) {
+                    if (DATE_OPS.has(op)) {
+                        dateOps[op] = value[op];
+                    } else {
+                        otherOps[op] = value[op];
+                    }
+                }
+                if (Object.keys(dateOps).length > 0) {
+                    dateComparisons.push({ columnId: key, operators: dateOps });
+                }
+                if (Object.keys(otherOps).length > 0) {
+                    apiFilter[key] = otherOps;
+                }
+            } else {
+                apiFilter[key] = value;
+            }
+        } else {
+            apiFilter[key] = filterObj[key];
+        }
+    }
+    return {
+        apiFilter: Object.keys(apiFilter).length > 0 ? apiFilter : null,
+        dateFilter: dateComparisons.length > 0 ? dateComparisons : null
+    };
+}
+
+function applyDateFilter(records: any[], dateComparisons: any[]): any[] {
+    if (!dateComparisons || dateComparisons.length === 0) return records;
+
+    function toDate(value: any): Date | null {
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return new Date(value + 'T00:00:00.000-05:00');
+        }
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    return records.filter(record => {
+        return dateComparisons.every((dc: any) => {
+            const value = record[dc.columnId];
+            if (value === undefined || value === null) return false;
+            const date = toDate(value);
+            if (!date) return false;
+            const dateMs = date.getTime();
+
+            for (const [op, opValue] of Object.entries(dc.operators)) {
+                if (op === 'between' && Array.isArray(opValue) && opValue.length === 2) {
+                    const from = toDate(opValue[0]);
+                    let to = toDate(opValue[1]);
+                    if (!from || !to) return false;
+                    if (typeof opValue[1] === 'string' && opValue[1].length === 10 && !opValue[1].includes('T')) {
+                        to = new Date(opValue[1] + 'T23:59:59.999-05:00');
+                    }
+                    if (dateMs < from.getTime() || dateMs > to.getTime()) return false;
+                } else if (op === 'gte') {
+                    const cmp = toDate(opValue as string);
+                    if (!cmp || dateMs < cmp.getTime()) return false;
+                } else if (op === 'lte') {
+                    let cmp = toDate(opValue as string);
+                    if (!cmp) return false;
+                    if (typeof opValue === 'string' && opValue.length === 10 && !opValue.includes('T')) {
+                        cmp = new Date(opValue + 'T23:59:59.999-05:00');
+                    }
+                    if (dateMs > cmp.getTime()) return false;
+                } else if (op === 'gt') {
+                    const cmp = toDate(opValue as string);
+                    if (!cmp || dateMs <= cmp.getTime()) return false;
+                } else if (op === 'lt') {
+                    const cmp = toDate(opValue as string);
+                    if (!cmp || dateMs >= cmp.getTime()) return false;
+                }
+            }
+            return true;
+        });
+    });
+}
+    }
+    return newFilter;
+}
+
 export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosInstance) => {
 
     server.tool(
@@ -132,10 +241,10 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
 
     server.tool(
         "Buscar_Registros_De_Funcionalidad",
-        "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'buscarFuncionalidadPorNombre'. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /assets/ con timestamp, usando títulos de campos como headers.",
+        "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'Buscar_Funcionalidad_Por_Nombre'. El filtro debe usar los TÍTULOS de los campos como claves (ej: 'FECHA ENTRADA', 'USUARIO') con operadores como 'equals', 'contains', 'between'. Para rangos de fecha usa: { 'FECHA ENTRADA': { 'between': ['2026-01-17', '2026-07-17'] } }. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /assets/ con timestamp, usando títulos de campos como headers.",
         {
             idFuncionalidad: z.string().describe("El ID exacto de la funcionalidad donde se buscarán los registros."),
-            filtro: z.record(z.string(), z.any()).optional().describe("Objeto de filtro JSON para los registros. Usa los TÍTULOS de los campos."),
+            filtro: z.record(z.string(), z.any()).optional().describe("Objeto de filtro JSON plano. Usa los TÍTULOS de los campos como claves (ej: 'FECHA ENTRADA', 'USUARIO'). No envolver en {filters:{columns:[...]}}. Para rangos de fecha: { 'FECHA ENTRADA': { 'between': ['2026-01-17', '2026-07-17'] } }."),
             cantidad: z.number().optional().default(5),
             pagina: z.number().optional().default(1),
             orden: z.enum(["ASC", "DESC"]).optional().default("DESC"),
@@ -154,14 +263,37 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
 
                 const filtroReal = params.filtro || {};
                 const titleToIdMap: any = new Map(funcionalidad.parametros.map((p: any) => [p.titulo, p.columnId]));
+                const dateColumns = new Set<string>(
+                    funcionalidad.parametros.filter((p: any) => p.tipo === 'date-time').map((p: any) => p.columnId)
+                );
+
                 const translatedFilter = translateFilterKeys(filtroReal, titleToIdMap);
-                const body = { filters: { columns: [translatedFilter] }, discriminatedLocation: false };
-                const pageOptions = { take: params.cantidad, page: params.pagina, order: params.orden };
+                const { apiFilter, dateFilter } = extractDateFilters(translatedFilter, dateColumns);
+
+                const hasDateFilter = dateFilter !== null && dateFilter.length > 0;
+
+                let take = params.cantidad;
+                let page = params.pagina;
+
+                if (hasDateFilter) {
+                    take = Math.max(take, 1000);
+                    page = 1;
+                }
+
+                const body = { filters: { columns: [apiFilter || {}] }, discriminatedLocation: false };
+                const pageOptions = { take, page, order: params.orden };
 
                 const regResponse = await apiClient.post(`/functionalities/register/findAllFilters/${params.idFuncionalidad}`, body, { params: pageOptions });
 
-                const registros = regResponse.data.data;
-                const meta = regResponse.data.meta;
+                let registros = regResponse.data.data;
+                let meta = regResponse.data.meta;
+
+                if (hasDateFilter && registros && registros.length > 0) {
+                    registros = applyDateFilter(registros, dateFilter);
+                    const startIdx = (params.pagina - 1) * params.cantidad;
+                    const paged = registros.slice(startIdx, startIdx + params.cantidad);
+                    registros = paged;
+                }
 
                 if (!registros || registros.length === 0) {
                     await logToolExecution({ level: 'INFO', toolName, parameters: params, status: 'SUCCESS', message: `No se encontraron registros.` });
