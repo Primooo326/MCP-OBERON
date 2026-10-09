@@ -127,9 +127,6 @@ function applyDateFilter(records: any[], dateComparisons: any[]): any[] {
         });
     });
 }
-    }
-    return newFilter;
-}
 
 export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosInstance) => {
 

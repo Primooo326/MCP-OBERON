@@ -2,8 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AxiosInstance } from "axios";
 import z from "zod";
 import { logToolExecution } from "../logging.js";
+import { API_BASE_URL } from "../constants.js";
 
-const URL_OBERON = 'https://api.dev.oberon360.com/api/functionalities/register/findAllFiltersDav/';
+const BASE_API = (API_BASE_URL || 'https://api.dev.oberon360.com/api/').replace(/\/+$/, '');
+const URL_OBERON = `${BASE_API}/functionalities/register/findAllFiltersDav/`;
 const FUNCT_ID_TEMPERATURA = '68640ae722068f1bff55f76a';
 const FUNCT_ID_GPS = '68483d789596d9d122f7222a'; // MAPA OPERATIVO
 const FUNCT_ID_VEHICULO = '68192b4aa8179b37f7eff226';
@@ -11,7 +13,8 @@ const FUNCT_ID_SENSOR = '68192cc7a8179b37f7f004e6';
 const EXTERNAL_API_KEY = process.env.EXTERNAL_API_KEY || '';
 
 
-export function registerUtilitiesTool(server: McpServer) {
+export function registerUtilitiesTool(server: McpServer, sessionToken?: string) {
+    const activeToken = EXTERNAL_API_KEY || sessionToken || '';
     console.log(`[Tools] Registrando herramientas de Utilidades en el servidor...`);
 
     server.tool(
@@ -51,7 +54,7 @@ export function registerUtilitiesTool(server: McpServer) {
                 const response = await fetch(`${URL_OBERON}${FUNCT_ID_TEMPERATURA}?take=1`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${EXTERNAL_API_KEY}`,
+                        'Authorization': `Bearer ${activeToken}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(body)
@@ -141,7 +144,7 @@ export function registerUtilitiesTool(server: McpServer) {
                 const responseVehiculos = await fetch(`${URL_OBERON}${FUNCT_ID_VEHICULO}?take=1`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${EXTERNAL_API_KEY}`,
+                        'Authorization': `Bearer ${activeToken}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(bodyVehiculos)
@@ -188,7 +191,7 @@ export function registerUtilitiesTool(server: McpServer) {
                 const responseSensores = await fetch(`${URL_OBERON}${FUNCT_ID_SENSOR}?take=1`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${EXTERNAL_API_KEY}`,
+                        'Authorization': `Bearer ${activeToken}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(bodySensores)
@@ -235,7 +238,7 @@ export function registerUtilitiesTool(server: McpServer) {
                 const responseGps = await fetch(`${URL_OBERON}${FUNCT_ID_GPS}?take=1`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${EXTERNAL_API_KEY}`,
+                        'Authorization': `Bearer ${activeToken}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(bodyGps)

@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { registerAllTools } from "./tools/register.js";
 import { registerAllResources } from "./resources/register.js";
+import { registerAllPrompts } from "./prompts/register.js";
 import cors from 'cors'
 import { createAxiosInstance } from "./constants.js";
 import * as path from 'path';
@@ -95,6 +96,7 @@ Tengo a mi disposición recursos de tipo 'skill_*' que contienen guías paso a p
 
     registerAllTools(server, apikey);
     registerAllResources(server);
+    registerAllPrompts(server);
 
     return server;
 }
