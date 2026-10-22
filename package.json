@@ -8,14 +8,14 @@
   "license": "ISC",
   "type": "module",
   "scripts": {
-    "build": "tsc && mkdir -p build/assets && cp -r src/assets/* build/assets/",
+    "build": "tsc && node -e \"require('fs').cpSync('src/assets', 'build/assets', {recursive: true})\"",
     "inspect:oberon": "npx @modelcontextprotocol/inspector node build/oberon.js",
     "inspect:weather": "npx @modelcontextprotocol/inspector node build/weather.js",
-    "inspect": "npx @modelcontextprotocol/inspector http://localhost:3000/mcp",
+    "inspect": "npx @modelcontextprotocol/inspector http://localhost:3001/mcp",
     "inspect:stdio": "npx @modelcontextprotocol/inspector  node build/stdio.js",
     "start": "node build/index.js",
     "dev": "nodemon",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "files": [
     "build"
@@ -34,6 +34,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.0",
     "cors": "^2.8.5",
+    "cross-env": "^10.1.0",
     "express": "^5.1.0",
     "jest": "^30.2.0",
     "nodemon": "^3.1.10",

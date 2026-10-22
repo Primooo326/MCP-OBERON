@@ -23,12 +23,10 @@ export function registerWhaTool(server: McpServer) {
                 status: "STARTED",
                 message: `Iniciando envío de mensaje por WhatsApp a ${to.length} destinatarios.`,
             });
-            const URL_WHA = "https://wha.oberon360.com/api/wha/send";
+            const URL_WHA = process.env.WHA_API_URL || "https://wha.oberon360.com/api/wha/send";
 
             console.log(`[Herramienta: Enviar_Mensaje_WhatsApp] Enviando mensaje a: ${to.join(", ")}`);
             try {
-
-
                 const bodyPayload: any = {
                     to: to,
                     message: message
@@ -37,7 +35,6 @@ export function registerWhaTool(server: McpServer) {
                     bodyPayload.replyMessageId = replyMessageId;
                 }
 
-                console.log(bodyPayload)
                 const response = await fetch(URL_WHA, {
                     method: 'POST',
                     headers: {
@@ -80,6 +77,7 @@ export function registerWhaTool(server: McpServer) {
                 });
                 console.error(`[Herramienta: Enviar_Mensaje_WhatsApp] Error enviando mensaje a ${to.join(", ")}:`, error.message);
                 return {
+                    isError: true,
                     content: [
                         {
                             type: "text",

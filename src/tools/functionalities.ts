@@ -127,15 +127,12 @@ function applyDateFilter(records: any[], dateComparisons: any[]): any[] {
         });
     });
 }
-    }
-    return newFilter;
-}
 
 export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosInstance) => {
 
     server.tool(
         "Obtener_Funcionalidades",
-        "Busca y devuelve DEFINICIONES de funcionalidades (admin) usando un filtro JSON complejo. Útil para búsquedas avanzadas con múltiples condiciones. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /assets/ con timestamp.",
+        "Busca y devuelve DEFINICIONES de funcionalidades (admin) usando un filtro JSON complejo. Útil para búsquedas avanzadas con múltiples condiciones. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /downloads/ con timestamp.",
         {
             filtro: z.record(z.string(), z.any()).describe(`Objeto de filtro JSON. Ejemplo: { "$and": [{ "moduleType": { "equals": 2 } }, {"name": {"contains": "Reporte"}}] }`),
             cantidad: z.number().optional().default(10),
@@ -191,7 +188,7 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
                     message: "Ocurrió un error al buscar funcionalidades.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -234,14 +231,14 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
                     message: "Ocurrió un error al buscar la funcionalidad por nombre.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );
 
     server.tool(
         "Buscar_Registros_De_Funcionalidad",
-        "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'Buscar_Funcionalidad_Por_Nombre'. El filtro debe usar los TÍTULOS de los campos como claves (ej: 'FECHA ENTRADA', 'USUARIO') con operadores como 'equals', 'contains', 'between'. Para rangos de fecha usa: { 'FECHA ENTRADA': { 'between': ['2026-01-17', '2026-07-17'] } }. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /assets/ con timestamp, usando títulos de campos como headers.",
+        "Busca y devuelve los REGISTROS de una funcionalidad específica usando su ID. Esta herramienta es el segundo paso, después de obtener el ID con 'Buscar_Funcionalidad_Por_Nombre'. El filtro debe usar los TÍTULOS de los campos como claves (ej: 'FECHA ENTRADA', 'USUARIO') con operadores como 'equals', 'contains', 'between'. Para rangos de fecha usa: { 'FECHA ENTRADA': { 'between': ['2026-01-17', '2026-07-17'] } }. Devuelve datos en formato JSON parseable en el campo 'text'. Si exportToExcel=true, genera un archivo Excel descargable en /downloads/ con timestamp, usando títulos de campos como headers.",
         {
             idFuncionalidad: z.string().describe("El ID exacto de la funcionalidad donde se buscarán los registros."),
             filtro: z.record(z.string(), z.any()).optional().describe("Objeto de filtro JSON plano. Usa los TÍTULOS de los campos como claves (ej: 'FECHA ENTRADA', 'USUARIO'). No envolver en {filters:{columns:[...]}}. Para rangos de fecha: { 'FECHA ENTRADA': { 'between': ['2026-01-17', '2026-07-17'] } }."),
@@ -345,7 +342,53 @@ export const registerFunctionalitiesTool = (server: McpServer, apiClient: AxiosI
                     message: `Ocurrió un error al buscar los registros: ${errorMessage}`,
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
+            }
+        }
+    );
+
+    server.tool(
+        "Obtener_Contexto_Proyecto",
+        "Obtiene el contexto de negocio, arquitectura, segmentos y mapa relacional (grafo de dependencias) de los módulos de un proyecto en Oberon 360 (ej: 'tracking', 'atm', etc.) o hace un análisis detallado (deep-dive) de un módulo específico. Úsala cuando el usuario pregunte cómo funciona un proyecto, qué módulos contiene, cómo se relacionan entre sí o qué datos requiere un módulo en particular. Al responder al usuario final, explica la narrativa de negocio, las fases operativas y genera un diagrama Mermaid para ilustrar las conexiones.",
+        {
+            proyecto: z.string().describe("Nombre o término de búsqueda del proyecto (ej: 'tracking', 'atm', 'operacion')."),
+            modulo: z.string().optional().describe("(Opcional) Nombre del módulo específico para analizar a fondo sus campos, relaciones entrantes y salientes.")
+        },
+        async (params) => {
+            const toolName = "obtenerContextoProyecto";
+            await logToolExecution({ level: 'INFO', toolName, parameters: params, status: 'STARTED', message: `Consultando contexto para proyecto: '${params.proyecto}'${params.modulo ? `, módulo: '${params.modulo}'` : ''}.` });
+            try {
+                const response = await apiClient.get('/functionalities/admin/project-context', {
+                    params: {
+                        proyecto: params.proyecto,
+                        modulo: params.modulo
+                    }
+                });
+
+                const data = response.data?.data || response.data;
+                await logToolExecution({ level: 'INFO', toolName, parameters: params, status: 'SUCCESS', message: `Contexto obtenido exitosamente para '${params.proyecto}'.` });
+                
+                return {
+                    content: [{
+                        type: "text",
+                        text: JSON.stringify({
+                            type: "project_context",
+                            data,
+                            meta: {
+                                instructions: "Presenta al usuario un resumen claro de negocio, las fases del flujo operativo y un diagrama Mermaid (flowchart TD o graph TD) con las relaciones principales entre módulos."
+                            }
+                        }, null, 2)
+                    }]
+                };
+            } catch (error: any) {
+                const errorMessage = error.response?.data?.message || error.message;
+                await logToolExecution({ level: 'ERROR', toolName, parameters: params, status: 'FAILURE', message: errorMessage, details: error.stack });
+                const errorJson = JSON.stringify({
+                    type: "error",
+                    message: `Ocurrió un error al obtener el contexto del proyecto '${params.proyecto}': ${errorMessage}`,
+                    details: { error: error.message }
+                }, null, 2);
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );

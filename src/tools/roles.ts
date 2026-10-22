@@ -93,7 +93,7 @@ export function registerRolesTool(server: McpServer, apiClient: AxiosInstance) {
                     message: "Ocurrió un error al consultar la API de roles.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );

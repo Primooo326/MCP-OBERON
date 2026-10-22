@@ -1,0 +1,9 @@
+node_modules
+build
+.git
+.env
+downloads
+tools_activity.txt
+.gemini
+.opencode
+pnpm-lock.yaml

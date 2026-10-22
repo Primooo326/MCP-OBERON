@@ -93,7 +93,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                     message: "Ocurrió un error al consultar la API de usuarios.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -177,7 +177,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                     message: "Ocurrió un error al consultar la API de usuarios.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -200,9 +200,9 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                 message: `Iniciando consulta de usuarios para cliente: ${clientId}`,
             });
             try {
-                console.log(`[Herramienta: obtenerUsuariosPorCliente] Llamando a /core/users/getUsersByClientId/${clientId}...`);
+                console.log(`[Herramienta: obtenerUsuariosPorCliente] Llamando a /core/users con clientId=${clientId}...`);
 
-                const response = await apiClient.get('/core/users/getUsersByClientId/' + clientId);
+                const response = await apiClient.get('/core/users', { params: { clientId } });
                 const usuarios = response.data.data;
                 const meta = response.data.meta;
 
@@ -262,7 +262,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                     message: "Ocurrió un error al consultar la API de usuarios.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -370,7 +370,7 @@ export function registerUsersTool(server: McpServer, apiClient: AxiosInstance) {
                     success: false,
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );

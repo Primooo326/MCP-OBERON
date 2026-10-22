@@ -91,7 +91,7 @@ export function registerPermisosTool(server: McpServer, apiClient: AxiosInstance
                     message: "Ocurrió un error al consultar la API de permisos.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );
@@ -174,7 +174,7 @@ export function registerPermisosTool(server: McpServer, apiClient: AxiosInstance
                     message: "Ocurrió un error al consultar la API de permisos por ID.",
                     details: { error: error.message }
                 }, null, 2);
-                return { content: [{ type: "text", text: errorJson }] };
+                return { isError: true, content: [{ type: "text", text: errorJson }] };
             }
         }
     );

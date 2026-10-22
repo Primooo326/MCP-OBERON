@@ -30,7 +30,9 @@ app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 const servers: { [sessionId: string]: McpServer } = {};
-const PORT = 3001;
+const sessionLastActive: { [sessionId: string]: number } = {};
+const activeStreams: Set<string> = new Set();
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
 
 function createConfiguredMcpServer(token: string): McpServer {
@@ -71,6 +73,16 @@ Si el usuario consulta ubicación o temperatura, usaré directamente las herrami
 Exportación:
 Opciones como exportToExcel (booleano) existen en las herramientas de obtención. Si el resultado es muy masivo (> 20 resultados) o el usuario lo pide implícitamente, generaré proactivamente la opción de un Excel activando esa flag, lo cual proveerá URLs descargables de los resultados.
 
+Contexto y Arquitectura de Proyectos:
+- Si el usuario pide contexto sobre un proyecto entero (ej: "tracking", "atm", etc.), pregunta cómo funciona un proyecto, qué módulos contiene o cómo se relacionan entre sí:
+  1. DEBO llamar a la herramienta 'Obtener_Contexto_Proyecto' pasando el nombre del proyecto en 'proyecto'.
+  2. Si el usuario pregunta por un módulo en particular dentro de ese proyecto (ej: "cómo funciona Programación de Rutas"), paso también el nombre en 'modulo'.
+  3. Con la información devuelta, estructuro mi respuesta de la siguiente forma:
+     a) Resumen de negocio del proyecto (su propósito operativo general).
+     b) Fases y segmentos (cómo se organiza: Parametrización base -> Configuración de entidades -> Operación en ruta -> Monitoreo y Novedades -> Reportería).
+     c) Flujo operativo y dependencias: Explicación de cómo la información fluye de unos módulos a otros (quién alimenta a quién).
+     d) Diagrama Mermaid: Un bloque de código \`\`\`mermaid con un diagrama de flujo (flowchart TD o graph TD) mostrando los módulos clave y sus conexiones con etiquetas legibles.
+
 Skills (Guías de Flujo de Trabajo):
 Tengo a mi disposición recursos de tipo 'skill_*' que contienen guías paso a paso para tareas comunes. DEBO leer el skill correspondiente a través de list/read_resources cuando el usuario solicite una tarea que tenga un skill asociado.
 - Si el usuario pide crear un usuario, DEBO leer 'skill_crear_usuario' y seguir sus pasos.
@@ -78,7 +90,7 @@ Tengo a mi disposición recursos de tipo 'skill_*' que contienen guías paso a p
 
     const server = new McpServer(
         {
-            name: "oberon-stremable-http",
+            name: "oberon-streamable-http",
             version: "1.2.0",
         },
         {
@@ -156,6 +168,7 @@ app.post('/mcp', async (req: express.Request, res: express.Response) => {
                 onsessioninitialized: (newSessionId) => {
                     transports[newSessionId] = transport;
                     servers[newSessionId] = server;
+                    sessionLastActive[newSessionId] = Date.now();
                     console.log(`[Sesión ${newSessionId}] Creada y almacenada.`);
                 }
             });
@@ -169,6 +182,7 @@ app.post('/mcp', async (req: express.Request, res: express.Response) => {
                         srv.close();
                     }
                     delete transports[transport.sessionId];
+                    delete sessionLastActive[transport.sessionId];
                 }
             };
 
@@ -185,6 +199,9 @@ app.post('/mcp', async (req: express.Request, res: express.Response) => {
             return;
         }
 
+        if (sessionId) {
+            sessionLastActive[sessionId] = Date.now();
+        }
         await transport.handleRequest(req, res, req.body);
     } catch (error) {
         console.error('Error handling MCP POST request:', error);
@@ -213,6 +230,14 @@ const handleGetSessionRequest = async (req: express.Request, res: express.Respon
     }
 
     try {
+        sessionLastActive[sessionId] = Date.now();
+        activeStreams.add(sessionId);
+
+        req.on('close', () => {
+            activeStreams.delete(sessionId);
+            sessionLastActive[sessionId] = Date.now();
+        });
+
         const transport = transports[sessionId];
         await transport.handleRequest(req, res);
     } catch (error) {
@@ -231,6 +256,8 @@ const handleDeleteSessionRequest = async (req: express.Request, res: express.Res
     }
     console.log(`Recibida solicitud de terminación de sesión para la sesión ${sessionId}`);
     try {
+        activeStreams.delete(sessionId);
+        delete sessionLastActive[sessionId];
         const transport = transports[sessionId];
         await transport.handleRequest(req, res);
     } catch (error) {
@@ -267,10 +294,38 @@ async function cleanupDownloads() {
     }
 }
 
+async function cleanupInactiveSessions() {
+    const now = Date.now();
+    const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutos de inactividad
+    for (const sessionId in sessionLastActive) {
+        if (activeStreams.has(sessionId)) {
+            continue;
+        }
+        if (now - sessionLastActive[sessionId] > SESSION_TIMEOUT) {
+            console.log(`[Limpieza Sesiones] Sesión ${sessionId} expirada por inactividad.`);
+            const transport = transports[sessionId];
+            const srv = servers[sessionId];
+            delete transports[sessionId];
+            delete servers[sessionId];
+            delete sessionLastActive[sessionId];
+            try {
+                if (transport) {
+                    transport.onclose = undefined;
+                    await transport.close();
+                }
+                if (srv) await srv.close();
+            } catch (err) {
+                console.error(`[Limpieza Sesiones] Error al cerrar sesión ${sessionId}:`, err);
+            }
+        }
+    }
+}
+
 const httpServer = app.listen(PORT, () => {
     console.log(`Servidor MCP de Oberon (Streamable HTTP) iniciado y escuchando en http://localhost:${PORT}/mcp`);
     cleanupDownloads();
     setInterval(cleanupDownloads, 24 * 60 * 60 * 1000);
+    setInterval(cleanupInactiveSessions, 10 * 60 * 1000);
 });
 
 process.on('SIGINT', async () => {
@@ -297,4 +352,12 @@ process.on('SIGINT', async () => {
 
     console.log('Apagado del servidor completado');
     process.exit(0);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('[Uncaught Exception]', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('[Unhandled Rejection]', reason);
 });

@@ -3,15 +3,15 @@ import { AxiosInstance } from "axios";
 import z from "zod";
 import { logToolExecution } from "../logging.js";
 
-const URL_OBERON = 'https://api.dev.oberon360.com/api/functionalities/register/findAllFiltersDav/';
-const FUNCT_ID_TEMPERATURA = '68640ae722068f1bff55f76a';
-const FUNCT_ID_GPS = '68483d789596d9d122f7222a'; // MAPA OPERATIVO
-const FUNCT_ID_VEHICULO = '68192b4aa8179b37f7eff226';
-const FUNCT_ID_SENSOR = '68192cc7a8179b37f7f004e6';
+const URL_OBERON = process.env.URL_OBERON || (process.env.API_BASE_URL ? `${process.env.API_BASE_URL.replace(/\/+$/, '')}/functionalities/register/findAllFiltersDav/` : 'https://api.dev.oberon360.com/api/functionalities/register/findAllFiltersDav/');
+const FUNCT_ID_TEMPERATURA = process.env.FUNCT_ID_TEMPERATURA || '68640ae722068f1bff55f76a';
+const FUNCT_ID_GPS = process.env.FUNCT_ID_GPS || '68483d789596d9d122f7222a'; // MAPA OPERATIVO
+const FUNCT_ID_VEHICULO = process.env.FUNCT_ID_VEHICULO || '68192b4aa8179b37f7eff226';
+const FUNCT_ID_SENSOR = process.env.FUNCT_ID_SENSOR || '68192cc7a8179b37f7f004e6';
 const EXTERNAL_API_KEY = process.env.EXTERNAL_API_KEY || '';
 
 
-export function registerUtilitiesTool(server: McpServer) {
+export function registerUtilitiesTool(server: McpServer, apiClient?: AxiosInstance) {
     console.log(`[Tools] Registrando herramientas de Utilidades en el servidor...`);
 
     server.tool(
@@ -48,6 +48,33 @@ export function registerUtilitiesTool(server: McpServer) {
             console.log(`[Herramienta: Verificar_Estado_Temperatura_Placa] Consultando placa: ${placa}`);
 
             try {
+                if (apiClient) {
+                    try {
+                        const nativeResp = await apiClient.get(`/core/operational-map/getHistoryTemperatureVehicle/${placa}`);
+                        const nativeData = nativeResp?.data?.data || nativeResp?.data;
+                        if (nativeData && (!Array.isArray(nativeData) || nativeData.length > 0)) {
+                            await logToolExecution({
+                                toolName,
+                                level: "INFO",
+                                parameters: logParams,
+                                status: "SUCCESS",
+                                message: `Verificación de temperatura completada para la placa ${placa}.`,
+                                details: { found: true, source: 'native-endpoint' }
+                            });
+                            return {
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: JSON.stringify({ success: true, data: nativeData }, null, 2)
+                                    }
+                                ]
+                            };
+                        }
+                    } catch (nativeErr: any) {
+                        console.warn(`[Verificar_Estado_Temperatura_Placa] Fallback a consulta directa: ${nativeErr.message}`);
+                    }
+                }
+
                 const response = await fetch(`${URL_OBERON}${FUNCT_ID_TEMPERATURA}?take=1`, {
                     method: 'POST',
                     headers: {
@@ -91,6 +118,7 @@ export function registerUtilitiesTool(server: McpServer) {
                 });
                 console.error(`[Herramienta: Verificar_Estado_Temperatura_Placa] Error consultando placa ${placa}:`, error.message);
                 return {
+                    isError: true,
                     content: [
                         {
                             type: "text",
@@ -168,9 +196,6 @@ export function registerUtilitiesTool(server: McpServer) {
                     };
                 }
 
-                console.log("Data vehiculo:::", data_vehiculo)
-
-
                 const bodySensores = {
                     "filters": {
                         "columns": [
@@ -215,9 +240,6 @@ export function registerUtilitiesTool(server: McpServer) {
                     };
                 }
 
-                console.log("Data sensores:::", data_sensores)
-
-
                 const bodyGps = {
                     "filters": {
                         "columns": [
@@ -261,8 +283,6 @@ export function registerUtilitiesTool(server: McpServer) {
                         content: [{ type: "text", text: JSON.stringify({ success: false, message: `Datos de GPS para el sensor del vehículo ${placa} no encontrados.` }, null, 2) }]
                     };
                 }
-
-                console.log("Data gps:::", data_gps)
 
                 const data_final = {
                     vehiculo: {
@@ -313,6 +333,7 @@ export function registerUtilitiesTool(server: McpServer) {
                 });
                 console.error(`[Herramienta: Verificar_Estado_GPS_Placa] Error consultando placa ${placa}:`, error.message);
                 return {
+                    isError: true,
                     content: [
                         {
                             type: "text",

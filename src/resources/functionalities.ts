@@ -16,13 +16,13 @@ export function registerFunctionalitiesResource(server: McpServer) {
         {
             title: "Interface IFuncionalidad",
             description: "Define la estructura completa de un módulo o pantalla dentro de la aplicación. Es la entidad principal del sistema.",
-            mimeType: "text/plain"
+            mimeType: "application/json"
         },
         async (uri) => ({
             contents: [{
                 uri: uri.href,
-                text: "A continuación se detalla cada interfaz y sus propiedades.",
-                blob: {
+                mimeType: "application/json",
+                text: JSON.stringify({
                     "interfaces": {
                         "IFuncionalidad": {
                             "description": "Define la estructura completa de un módulo o pantalla dentro de la aplicación. Es la entidad principal del sistema.",
@@ -476,7 +476,7 @@ export function registerFunctionalitiesResource(server: McpServer) {
                             ]
                         }
                     }
-                }
+                }, null, 2)
             }]
         })
     );
